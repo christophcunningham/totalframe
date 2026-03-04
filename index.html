@@ -3,12 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Total Frame V5.8a — Pro Picture Framing Calculator</title>
+    <title>Total Frame — Pro Picture Framing Calculator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="icon" href="favicon.png" type="image/png" />
     <style>
       :root {
         --bg: #ffffff;
@@ -128,7 +129,7 @@
         border-color: var(--accent-color) !important;
       }
       .cutlist-btn:hover .cutlist-btn-sub {
-        color: rgba(255,255,255,0.8) !important;
+        color: rgba(255, 255, 255, 0.8) !important;
       }
       .cutlist-btn:active {
         opacity: 0.85;
@@ -144,7 +145,10 @@
         padding: 3px 8px;
         cursor: pointer;
         font-family: inherit;
-        transition: background 0.15s, color 0.15s, border-color 0.15s;
+        transition:
+          background 0.15s,
+          color 0.15s,
+          border-color 0.15s;
         white-space: nowrap;
         -webkit-tap-highlight-color: transparent;
       }
@@ -1833,7 +1837,13 @@
             >
               <div
                 style={{
-                  fontSize: useMetric ? (largeText ? "44px" : "34px") : (largeText ? "57px" : "45px"),
+                  fontSize: useMetric
+                    ? largeText
+                      ? "44px"
+                      : "34px"
+                    : largeText
+                      ? "57px"
+                      : "45px",
                   fontWeight: largeText ? 400 : 300,
                   lineHeight: 1,
                   color: "var(--text)",
@@ -2019,7 +2029,10 @@
           const raf = requestAnimationFrame(update);
           const ro = new ResizeObserver(update);
           if (outerRef.current) ro.observe(outerRef.current);
-          return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+          return () => {
+            cancelAnimationFrame(raf);
+            ro.disconnect();
+          };
         });
 
         return (
@@ -2027,7 +2040,7 @@
             <div
               ref={innerRef}
               style={{
-                transform: scale < 1 ? ("scale(" + scale + ")") : "none",
+                transform: scale < 1 ? "scale(" + scale + ")" : "none",
                 transformOrigin: "top left",
                 height: innerH,
               }}
@@ -3213,596 +3226,633 @@
           const tickLen = 5;
 
           return (
-            <div style={{
-              background: "var(--bg)",
-              color: "var(--text)",
-              minHeight: "100vh",
-              margin: "-16px -12px",
-              padding: "16px 12px",
-              transition: "background 0.25s, color 0.25s",
-            }}>
-            <div className="container">
-              {/* Nav buttons */}
-              <div
-                className="no-print"
-                style={{
-                  marginBottom: "28px",
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                }}
-              >
-                {[
-                  {
-                    label: "← Back",
-                    onClick: () => setShowCutList(false),
-                    accent: false,
-                  },
-                  {
-                    label: "Tear Sheet",
-                    onClick: () => {
-                      setShowCutList(false);
-                      setShowTearPage(true);
-                      window.scrollTo(0, 0);
-                    },
-                    accent: false,
-                  },
-                  {
-                    label: "Download PDF",
-                    onClick: (e) =>
-                      generatePDF("mat-cut-list.pdf", "cut-list-content", e),
-                    accent: true,
-                  },
-                  {
-                    label: "Print",
-                    onClick: () => window.print(),
-                    accent: false,
-                  },
-                ].map((btn) => (
-                  <button
-                    key={btn.label}
-                    onClick={btn.onClick}
-                    style={{
-                      padding: "9px 18px",
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      background: btn.accent
-                        ? "var(--accent)"
-                        : "var(--surface-alt)",
-                      color: btn.accent ? "var(--accent-text)" : "var(--text)",
-                      border: btn.accent
-                        ? "none"
-                        : "1px solid var(--border-strong)",
-                      fontWeight: 400,
-                    }}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
-
-              <div
-                id="cut-list-content"
-                style={{
-                  maxWidth: "720px",
-                  margin: "0 auto",
-                  background: "var(--bg)",
-                  padding: "0 0 48px",
-                }}
-              >
-                {/* Header */}
+            <div
+              style={{
+                background: "var(--bg)",
+                color: "var(--text)",
+                minHeight: "100vh",
+                margin: "-16px -12px",
+                padding: "16px 12px",
+                transition: "background 0.25s, color 0.25s",
+              }}
+            >
+              <div className="container">
+                {/* Nav buttons */}
                 <div
+                  className="no-print"
                   style={{
-                    borderBottom: "2px solid var(--text)",
-                    paddingBottom: "10px",
-                    marginBottom: "24px",
-                  }}
-                >
-                  <div style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    marginBottom: (itemProject || itemTitle || itemDate) ? "10px" : "0",
-                  }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.12em",
-                        color: "var(--text)",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Mat Cut List
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "10px",
-                        color: "var(--text-secondary)",
-                        letterSpacing: "0.05em",
-                      }}
-                    >
-                      {priorityMode === "mat" ? "Mat Priority" : "Frame Priority"}{" "}
-                      · {matColor} mat · {frameColor} frame
-                    </div>
-                  </div>
-                  {(itemProject || itemTitle || itemDate) && (
-                    <div style={{ fontSize: "13px", color: "var(--text)", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "baseline" }}>
-                      {itemProject && <span style={{ fontWeight: 600 }}>{itemProject}</span>}
-                      {itemProject && itemTitle && <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>}
-                      {itemTitle && <span>{itemTitle}</span>}
-                      {(itemProject || itemTitle) && itemDate && <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>}
-                      {itemDate && <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{itemDate}</span>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Two-column data */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "0",
                     marginBottom: "28px",
-                    border: "1px solid var(--border-strong)",
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
                   }}
                 >
                   {[
                     {
-                      label: "Mat Outer (W × H)",
-                      val: f(matOW) + " × " + f(matOH),
-                      sub: fm(matOW) + " × " + fm(matOH) + " mm",
+                      label: "← Back",
+                      onClick: () => setShowCutList(false),
+                      accent: false,
                     },
                     {
-                      label: "Window Opening (W × H)",
-                      val: f(artWidth) + " × " + f(artHeight),
-                      sub: fm(artWidth) + " × " + fm(artHeight) + " mm",
+                      label: "Tear Sheet",
+                      onClick: () => {
+                        setShowCutList(false);
+                        setShowTearPage(true);
+                        window.scrollTo(0, 0);
+                      },
+                      accent: false,
                     },
                     {
-                      label: "Top Margin",
-                      val: f(c.topMargin),
-                      sub: fm(c.topMargin) + " mm",
+                      label: "Download PDF",
+                      onClick: (e) =>
+                        generatePDF("mat-cut-list.pdf", "cut-list-content", e),
+                      accent: true,
                     },
                     {
-                      label: "Bottom Margin",
-                      val: f(c.bottomMargin),
-                      sub: fm(c.bottomMargin) + " mm",
+                      label: "Print",
+                      onClick: () => window.print(),
+                      accent: false,
                     },
-                    {
-                      label: "Left Margin",
-                      val: f(c.leftMargin),
-                      sub: fm(c.leftMargin) + " mm",
-                    },
-                    {
-                      label: "Right Margin",
-                      val: f(c.rightMargin),
-                      sub: fm(c.rightMargin) + " mm",
-                    },
-                    ...(priorityMode === "mat" && c.frameCutWidth
-                      ? [
-                          {
-                            label: "Frame Cut — Width",
-                            val: f(c.frameCutWidth),
-                            sub: fm(c.frameCutWidth) + " mm  ×2",
-                          },
-                          {
-                            label: "Frame Cut — Height",
-                            val: f(c.frameCutHeight),
-                            sub: fm(c.frameCutHeight) + " mm  ×2",
-                          },
-                          {
-                            label: "Min. Moulding Length",
-                            val: f(c.minMouldingLength),
-                            sub: fm(c.minMouldingLength) + " mm total",
-                          },
-                          {
-                            label: "Frame Outer (W × H)",
-                            val: f(frameOW) + " × " + f(frameOH),
-                            sub: fm(frameOW) + " × " + fm(frameOH) + " mm",
-                          },
-                        ]
-                      : [
-                          {
-                            label: "Frame Outer (W × H)",
-                            val: f(frameOW) + " × " + f(frameOH),
-                            sub: fm(frameOW) + " × " + fm(frameOH) + " mm",
-                          },
-                        ]),
-                  ].map((row, i) => (
-                    <div
-                      key={i}
+                  ].map((btn) => (
+                    <button
+                      key={btn.label}
+                      onClick={btn.onClick}
                       style={{
-                        padding: "10px 14px",
-                        borderRight:
-                          i % 2 === 0
-                            ? "1px solid var(--border-strong)"
-                            : "none",
-                        borderBottom: "1px solid var(--border)",
-                        background:
-                          i % 4 < 2 ? "var(--bg)" : "var(--surface-alt)",
+                        padding: "9px 18px",
+                        fontSize: "10px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        background: btn.accent
+                          ? "var(--accent)"
+                          : "var(--surface-alt)",
+                        color: btn.accent
+                          ? "var(--accent-text)"
+                          : "var(--text)",
+                        border: btn.accent
+                          ? "none"
+                          : "1px solid var(--border-strong)",
+                        fontWeight: 400,
+                      }}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div
+                  id="cut-list-content"
+                  style={{
+                    maxWidth: "720px",
+                    margin: "0 auto",
+                    background: "var(--bg)",
+                    padding: "0 0 48px",
+                  }}
+                >
+                  {/* Header */}
+                  <div
+                    style={{
+                      borderBottom: "2px solid var(--text)",
+                      paddingBottom: "10px",
+                      marginBottom: "24px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        justifyContent: "space-between",
+                        marginBottom:
+                          itemProject || itemTitle || itemDate ? "10px" : "0",
                       }}
                     >
                       <div
                         style={{
-                          fontSize: "9px",
+                          fontSize: "11px",
                           textTransform: "uppercase",
-                          letterSpacing: "0.1em",
-                          color: "var(--text-secondary)",
-                          marginBottom: "3px",
-                        }}
-                      >
-                        {row.label}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "15px",
-                          fontWeight: 500,
-                          fontVariantNumeric: "tabular-nums",
+                          letterSpacing: "0.12em",
                           color: "var(--text)",
+                          fontWeight: 600,
                         }}
                       >
-                        {row.val}
+                        Mat Cut List
                       </div>
                       <div
                         style={{
-                          fontSize: "9px",
-                          color: "var(--text-tertiary)",
-                          marginTop: "1px",
-                          fontVariantNumeric: "tabular-nums",
+                          fontSize: "10px",
+                          color: "var(--text-secondary)",
+                          letterSpacing: "0.05em",
                         }}
                       >
-                        {row.sub}
+                        {priorityMode === "mat"
+                          ? "Mat Priority"
+                          : "Frame Priority"}{" "}
+                        · {matColor} mat · {frameColor} frame
                       </div>
                     </div>
-                  ))}
-                </div>
+                    {(itemProject || itemTitle || itemDate) && (
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--text)",
+                          display: "flex",
+                          gap: "6px",
+                          flexWrap: "wrap",
+                          alignItems: "baseline",
+                        }}
+                      >
+                        {itemProject && (
+                          <span style={{ fontWeight: 600 }}>{itemProject}</span>
+                        )}
+                        {itemProject && itemTitle && (
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            {"\u2014"}
+                          </span>
+                        )}
+                        {itemTitle && <span>{itemTitle}</span>}
+                        {(itemProject || itemTitle) && itemDate && (
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            {"\u2014"}
+                          </span>
+                        )}
+                        {itemDate && (
+                          <span
+                            style={{
+                              color: "var(--text-secondary)",
+                              fontSize: "11px",
+                            }}
+                          >
+                            {itemDate}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                {/* Mat Diagram */}
-                <div
-                  style={{
-                    fontSize: "9px",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: "var(--text-secondary)",
-                    marginBottom: "12px",
-                  }}
-                >
-                  Mat Diagram
-                </div>
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                  <svg
-                    width={svgW}
-                    height={svgH}
-                    style={{ maxWidth: "100%", overflow: "visible" }}
+                  {/* Two-column data */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "0",
+                      marginBottom: "28px",
+                      border: "1px solid var(--border-strong)",
+                    }}
                   >
-                    {/* Mat body */}
-                    <rect
-                      x={tx}
-                      y={ty}
-                      width={dW}
-                      height={dH}
-                      fill="var(--surface-alt)"
-                      stroke="var(--text)"
-                      strokeWidth="1.5"
-                    />
-                    {/* Window opening */}
-                    <rect
-                      x={tx + oL}
-                      y={ty + oT}
-                      width={oW}
-                      height={oH}
-                      fill="var(--bg)"
-                      stroke="var(--text)"
-                      strokeWidth="1"
-                      strokeDasharray="5,3"
-                    />
+                    {[
+                      {
+                        label: "Mat Outer (W × H)",
+                        val: f(matOW) + " × " + f(matOH),
+                        sub: fm(matOW) + " × " + fm(matOH) + " mm",
+                      },
+                      {
+                        label: "Window Opening (W × H)",
+                        val: f(artWidth) + " × " + f(artHeight),
+                        sub: fm(artWidth) + " × " + fm(artHeight) + " mm",
+                      },
+                      {
+                        label: "Top Margin",
+                        val: f(c.topMargin),
+                        sub: fm(c.topMargin) + " mm",
+                      },
+                      {
+                        label: "Bottom Margin",
+                        val: f(c.bottomMargin),
+                        sub: fm(c.bottomMargin) + " mm",
+                      },
+                      {
+                        label: "Left Margin",
+                        val: f(c.leftMargin),
+                        sub: fm(c.leftMargin) + " mm",
+                      },
+                      {
+                        label: "Right Margin",
+                        val: f(c.rightMargin),
+                        sub: fm(c.rightMargin) + " mm",
+                      },
+                      ...(priorityMode === "mat" && c.frameCutWidth
+                        ? [
+                            {
+                              label: "Frame Cut — Width",
+                              val: f(c.frameCutWidth),
+                              sub: fm(c.frameCutWidth) + " mm  ×2",
+                            },
+                            {
+                              label: "Frame Cut — Height",
+                              val: f(c.frameCutHeight),
+                              sub: fm(c.frameCutHeight) + " mm  ×2",
+                            },
+                            {
+                              label: "Min. Moulding Length",
+                              val: f(c.minMouldingLength),
+                              sub: fm(c.minMouldingLength) + " mm total",
+                            },
+                            {
+                              label: "Frame Outer (W × H)",
+                              val: f(frameOW) + " × " + f(frameOH),
+                              sub: fm(frameOW) + " × " + fm(frameOH) + " mm",
+                            },
+                          ]
+                        : [
+                            {
+                              label: "Frame Outer (W × H)",
+                              val: f(frameOW) + " × " + f(frameOH),
+                              sub: fm(frameOW) + " × " + fm(frameOH) + " mm",
+                            },
+                          ]),
+                    ].map((row, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: "10px 14px",
+                          borderRight:
+                            i % 2 === 0
+                              ? "1px solid var(--border-strong)"
+                              : "none",
+                          borderBottom: "1px solid var(--border)",
+                          background:
+                            i % 4 < 2 ? "var(--bg)" : "var(--surface-alt)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "9px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.1em",
+                            color: "var(--text-secondary)",
+                            marginBottom: "3px",
+                          }}
+                        >
+                          {row.label}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "15px",
+                            fontWeight: 500,
+                            fontVariantNumeric: "tabular-nums",
+                            color: "var(--text)",
+                          }}
+                        >
+                          {row.val}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "9px",
+                            color: "var(--text-tertiary)",
+                            marginTop: "1px",
+                            fontVariantNumeric: "tabular-nums",
+                          }}
+                        >
+                          {row.sub}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                    {/* === TOP MARGIN === */}
-                    {/* Vertical tick at mat top, center */}
-                    <line
-                      x1={tx + dW / 2}
-                      y1={ty - tickLen}
-                      x2={tx + dW / 2}
-                      y2={ty + tickLen}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    {/* Vertical tick at opening top */}
-                    <line
-                      x1={tx + dW / 2}
-                      y1={ty + oT - tickLen}
-                      x2={tx + dW / 2}
-                      y2={ty + oT + tickLen}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    {/* Connecting line */}
-                    <line
-                      x1={tx + dW / 2}
-                      y1={ty}
-                      x2={tx + dW / 2}
-                      y2={ty + oT}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                      strokeDasharray="2,2"
-                    />
-                    {/* Label */}
-                    <text
-                      x={tx + dW / 2 + 6}
-                      y={ty + oT / 2}
-                      fontSize="10"
-                      fill="var(--text)"
-                      dominantBaseline="middle"
-                      fontVariantNumeric="tabular-nums"
+                  {/* Mat Diagram */}
+                  <div
+                    style={{
+                      fontSize: "9px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                      color: "var(--text-secondary)",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Mat Diagram
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "center" }}>
+                    <svg
+                      width={svgW}
+                      height={svgH}
+                      style={{ maxWidth: "100%", overflow: "visible" }}
                     >
-                      {f(c.topMargin)}
-                    </text>
+                      {/* Mat body */}
+                      <rect
+                        x={tx}
+                        y={ty}
+                        width={dW}
+                        height={dH}
+                        fill="var(--surface-alt)"
+                        stroke="var(--text)"
+                        strokeWidth="1.5"
+                      />
+                      {/* Window opening */}
+                      <rect
+                        x={tx + oL}
+                        y={ty + oT}
+                        width={oW}
+                        height={oH}
+                        fill="var(--bg)"
+                        stroke="var(--text)"
+                        strokeWidth="1"
+                        strokeDasharray="5,3"
+                      />
 
-                    {/* === BOTTOM MARGIN === */}
-                    <line
-                      x1={tx + dW / 2}
-                      y1={ty + oT + oH - tickLen}
-                      x2={tx + dW / 2}
-                      y2={ty + oT + oH + tickLen}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + dW / 2}
-                      y1={ty + dH - tickLen}
-                      x2={tx + dW / 2}
-                      y2={ty + dH + tickLen}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + dW / 2}
-                      y1={ty + oT + oH}
-                      x2={tx + dW / 2}
-                      y2={ty + dH}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                      strokeDasharray="2,2"
-                    />
-                    <text
-                      x={tx + dW / 2 + 6}
-                      y={ty + oT + oH + (dH - oT - oH) / 2}
-                      fontSize="10"
-                      fill="var(--text)"
-                      dominantBaseline="middle"
-                      fontVariantNumeric="tabular-nums"
-                    >
-                      {f(c.bottomMargin)}
-                    </text>
+                      {/* === TOP MARGIN === */}
+                      {/* Vertical tick at mat top, center */}
+                      <line
+                        x1={tx + dW / 2}
+                        y1={ty - tickLen}
+                        x2={tx + dW / 2}
+                        y2={ty + tickLen}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      {/* Vertical tick at opening top */}
+                      <line
+                        x1={tx + dW / 2}
+                        y1={ty + oT - tickLen}
+                        x2={tx + dW / 2}
+                        y2={ty + oT + tickLen}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      {/* Connecting line */}
+                      <line
+                        x1={tx + dW / 2}
+                        y1={ty}
+                        x2={tx + dW / 2}
+                        y2={ty + oT}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                        strokeDasharray="2,2"
+                      />
+                      {/* Label */}
+                      <text
+                        x={tx + dW / 2 + 6}
+                        y={ty + oT / 2}
+                        fontSize="10"
+                        fill="var(--text)"
+                        dominantBaseline="middle"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(c.topMargin)}
+                      </text>
 
-                    {/* === LEFT MARGIN === */}
-                    <line
-                      x1={tx - tickLen}
-                      y1={ty + dH / 2}
-                      x2={tx + tickLen}
-                      y2={ty + dH / 2}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + oL - tickLen}
-                      y1={ty + dH / 2}
-                      x2={tx + oL + tickLen}
-                      y2={ty + dH / 2}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx}
-                      y1={ty + dH / 2}
-                      x2={tx + oL}
-                      y2={ty + dH / 2}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                      strokeDasharray="2,2"
-                    />
-                    <text
-                      x={tx + oL / 2}
-                      y={ty + dH / 2 - 8}
-                      fontSize="10"
-                      fill="var(--text)"
-                      textAnchor="middle"
-                      fontVariantNumeric="tabular-nums"
-                    >
-                      {f(c.leftMargin)}
-                    </text>
+                      {/* === BOTTOM MARGIN === */}
+                      <line
+                        x1={tx + dW / 2}
+                        y1={ty + oT + oH - tickLen}
+                        x2={tx + dW / 2}
+                        y2={ty + oT + oH + tickLen}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + dW / 2}
+                        y1={ty + dH - tickLen}
+                        x2={tx + dW / 2}
+                        y2={ty + dH + tickLen}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + dW / 2}
+                        y1={ty + oT + oH}
+                        x2={tx + dW / 2}
+                        y2={ty + dH}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                        strokeDasharray="2,2"
+                      />
+                      <text
+                        x={tx + dW / 2 + 6}
+                        y={ty + oT + oH + (dH - oT - oH) / 2}
+                        fontSize="10"
+                        fill="var(--text)"
+                        dominantBaseline="middle"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(c.bottomMargin)}
+                      </text>
 
-                    {/* === RIGHT MARGIN === */}
-                    <line
-                      x1={tx + oL + oW - tickLen}
-                      y1={ty + dH / 2}
-                      x2={tx + oL + oW + tickLen}
-                      y2={ty + dH / 2}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + dW - tickLen}
-                      y1={ty + dH / 2}
-                      x2={tx + dW + tickLen}
-                      y2={ty + dH / 2}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + oL + oW}
-                      y1={ty + dH / 2}
-                      x2={tx + dW}
-                      y2={ty + dH / 2}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                      strokeDasharray="2,2"
-                    />
-                    <text
-                      x={tx + oL + oW + (dW - oL - oW) / 2}
-                      y={ty + dH / 2 - 8}
-                      fontSize="10"
-                      fill="var(--text)"
-                      textAnchor="middle"
-                      fontVariantNumeric="tabular-nums"
-                    >
-                      {f(c.rightMargin)}
-                    </text>
+                      {/* === LEFT MARGIN === */}
+                      <line
+                        x1={tx - tickLen}
+                        y1={ty + dH / 2}
+                        x2={tx + tickLen}
+                        y2={ty + dH / 2}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + oL - tickLen}
+                        y1={ty + dH / 2}
+                        x2={tx + oL + tickLen}
+                        y2={ty + dH / 2}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx}
+                        y1={ty + dH / 2}
+                        x2={tx + oL}
+                        y2={ty + dH / 2}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                        strokeDasharray="2,2"
+                      />
+                      <text
+                        x={tx + oL / 2}
+                        y={ty + dH / 2 - 8}
+                        fontSize="10"
+                        fill="var(--text)"
+                        textAnchor="middle"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(c.leftMargin)}
+                      </text>
 
-                    {/* === OUTER WIDTH (top, above mat) === */}
-                    <line
-                      x1={tx}
-                      y1={ty - 20}
-                      x2={tx + dW}
-                      y2={ty - 20}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx}
-                      y1={ty - 24}
-                      x2={tx}
-                      y2={ty - 16}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + dW}
-                      y1={ty - 24}
-                      x2={tx + dW}
-                      y2={ty - 16}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <text
-                      x={tx + dW / 2}
-                      y={ty - 26}
-                      fontSize="11"
-                      fill="var(--text)"
-                      textAnchor="middle"
-                      fontWeight="600"
-                      fontVariantNumeric="tabular-nums"
-                    >
-                      {f(matOW)}
-                    </text>
+                      {/* === RIGHT MARGIN === */}
+                      <line
+                        x1={tx + oL + oW - tickLen}
+                        y1={ty + dH / 2}
+                        x2={tx + oL + oW + tickLen}
+                        y2={ty + dH / 2}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + dW - tickLen}
+                        y1={ty + dH / 2}
+                        x2={tx + dW + tickLen}
+                        y2={ty + dH / 2}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + oL + oW}
+                        y1={ty + dH / 2}
+                        x2={tx + dW}
+                        y2={ty + dH / 2}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                        strokeDasharray="2,2"
+                      />
+                      <text
+                        x={tx + oL + oW + (dW - oL - oW) / 2}
+                        y={ty + dH / 2 - 8}
+                        fontSize="10"
+                        fill="var(--text)"
+                        textAnchor="middle"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(c.rightMargin)}
+                      </text>
 
-                    {/* === OUTER HEIGHT (right, beside mat) === */}
-                    <line
-                      x1={tx + dW + 20}
-                      y1={ty}
-                      x2={tx + dW + 20}
-                      y2={ty + dH}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + dW + 16}
-                      y1={ty}
-                      x2={tx + dW + 24}
-                      y2={ty}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + dW + 16}
-                      y1={ty + dH}
-                      x2={tx + dW + 24}
-                      y2={ty + dH}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <text
-                      x={tx + dW + 28}
-                      y={ty + dH / 2}
-                      fontSize="11"
-                      fill="var(--text)"
-                      dominantBaseline="middle"
-                      fontWeight="600"
-                      fontVariantNumeric="tabular-nums"
-                    >
-                      {f(matOH)}
-                    </text>
+                      {/* === OUTER WIDTH (top, above mat) === */}
+                      <line
+                        x1={tx}
+                        y1={ty - 20}
+                        x2={tx + dW}
+                        y2={ty - 20}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx}
+                        y1={ty - 24}
+                        x2={tx}
+                        y2={ty - 16}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + dW}
+                        y1={ty - 24}
+                        x2={tx + dW}
+                        y2={ty - 16}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <text
+                        x={tx + dW / 2}
+                        y={ty - 26}
+                        fontSize="11"
+                        fill="var(--text)"
+                        textAnchor="middle"
+                        fontWeight="600"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(matOW)}
+                      </text>
 
-                    {/* === OPENING WIDTH (bottom, below opening) === */}
-                    <line
-                      x1={tx + oL}
-                      y1={ty + oT + oH + 16}
-                      x2={tx + oL + oW}
-                      y2={ty + oT + oH + 16}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + oL}
-                      y1={ty + oT + oH + 12}
-                      x2={tx + oL}
-                      y2={ty + oT + oH + 20}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + oL + oW}
-                      y1={ty + oT + oH + 12}
-                      x2={tx + oL + oW}
-                      y2={ty + oT + oH + 20}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <text
-                      x={tx + oL + oW / 2}
-                      y={ty + oT + oH + 30}
-                      fontSize="10"
-                      fill="var(--text-secondary)"
-                      textAnchor="middle"
-                      fontVariantNumeric="tabular-nums"
-                    >
-                      {f(artWidth)}
-                    </text>
+                      {/* === OUTER HEIGHT (right, beside mat) === */}
+                      <line
+                        x1={tx + dW + 20}
+                        y1={ty}
+                        x2={tx + dW + 20}
+                        y2={ty + dH}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + dW + 16}
+                        y1={ty}
+                        x2={tx + dW + 24}
+                        y2={ty}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + dW + 16}
+                        y1={ty + dH}
+                        x2={tx + dW + 24}
+                        y2={ty + dH}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <text
+                        x={tx + dW + 28}
+                        y={ty + dH / 2}
+                        fontSize="11"
+                        fill="var(--text)"
+                        dominantBaseline="middle"
+                        fontWeight="600"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(matOH)}
+                      </text>
 
-                    {/* === OPENING HEIGHT (left, beside opening) === */}
-                    <line
-                      x1={tx + oL - 16}
-                      y1={ty + oT}
-                      x2={tx + oL - 16}
-                      y2={ty + oT + oH}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + oL - 20}
-                      y1={ty + oT}
-                      x2={tx + oL - 12}
-                      y2={ty + oT}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <line
-                      x1={tx + oL - 20}
-                      y1={ty + oT + oH}
-                      x2={tx + oL - 12}
-                      y2={ty + oT + oH}
-                      stroke={dimColor}
-                      strokeWidth={dimStroke}
-                    />
-                    <text
-                      x={tx + oL - 26}
-                      y={ty + oT + oH / 2}
-                      fontSize="10"
-                      fill="var(--text-secondary)"
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontVariantNumeric="tabular-nums"
-                      transform={`rotate(-90, ${tx + oL - 26}, ${ty + oT + oH / 2})`}
-                    >
-                      {f(artHeight)}
-                    </text>
-                  </svg>
+                      {/* === OPENING WIDTH (bottom, below opening) === */}
+                      <line
+                        x1={tx + oL}
+                        y1={ty + oT + oH + 16}
+                        x2={tx + oL + oW}
+                        y2={ty + oT + oH + 16}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + oL}
+                        y1={ty + oT + oH + 12}
+                        x2={tx + oL}
+                        y2={ty + oT + oH + 20}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + oL + oW}
+                        y1={ty + oT + oH + 12}
+                        x2={tx + oL + oW}
+                        y2={ty + oT + oH + 20}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <text
+                        x={tx + oL + oW / 2}
+                        y={ty + oT + oH + 30}
+                        fontSize="10"
+                        fill="var(--text-secondary)"
+                        textAnchor="middle"
+                        fontVariantNumeric="tabular-nums"
+                      >
+                        {f(artWidth)}
+                      </text>
+
+                      {/* === OPENING HEIGHT (left, beside opening) === */}
+                      <line
+                        x1={tx + oL - 16}
+                        y1={ty + oT}
+                        x2={tx + oL - 16}
+                        y2={ty + oT + oH}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + oL - 20}
+                        y1={ty + oT}
+                        x2={tx + oL - 12}
+                        y2={ty + oT}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <line
+                        x1={tx + oL - 20}
+                        y1={ty + oT + oH}
+                        x2={tx + oL - 12}
+                        y2={ty + oT + oH}
+                        stroke={dimColor}
+                        strokeWidth={dimStroke}
+                      />
+                      <text
+                        x={tx + oL - 26}
+                        y={ty + oT + oH / 2}
+                        fontSize="10"
+                        fill="var(--text-secondary)"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontVariantNumeric="tabular-nums"
+                        transform={`rotate(-90, ${tx + oL - 26}, ${ty + oT + oH / 2})`}
+                      >
+                        {f(artHeight)}
+                      </text>
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
           );
         };
@@ -3846,439 +3896,491 @@
           const mc = matColors[matColor];
 
           return (
-            <div style={{
-              background: "var(--bg)",
-              color: "var(--text)",
-              minHeight: "100vh",
-              margin: "-16px -12px",
-              padding: "16px 12px",
-              transition: "background 0.25s, color 0.25s",
-            }}>
-            <div className="container">
-              <div
-                className="no-print"
-                style={{
-                  marginBottom: "28px",
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                }}
-              >
-                {[
-                  {
-                    label: "← Back",
-                    onClick: () => setShowTearPage(false),
-                    accent: false,
-                  },
-                  {
-                    label: "Cut List",
-                    onClick: () => {
-                      setShowTearPage(false);
-                      setShowCutList(true);
-                      window.scrollTo(0, 0);
-                    },
-                    accent: false,
-                  },
-                  {
-                    label: "Download PDF",
-                    onClick: (e) =>
-                      generatePDF("project-spec.pdf", "tear-page-content", e),
-                    accent: true,
-                  },
-                  {
-                    label: "Print",
-                    onClick: () => window.print(),
-                    accent: false,
-                  },
-                ].map((btn) => (
-                  <button
-                    key={btn.label}
-                    onClick={btn.onClick}
-                    style={{
-                      padding: "9px 18px",
-                      fontSize: "10px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.08em",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      background: btn.accent
-                        ? "var(--accent)"
-                        : "var(--surface-alt)",
-                      color: btn.accent ? "var(--accent-text)" : "var(--text)",
-                      border: btn.accent
-                        ? "none"
-                        : "1px solid var(--border-strong)",
-                      fontWeight: 400,
-                    }}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
-
-              <div
-                id="tear-page-content"
-                style={{
-                  maxWidth: "720px",
-                  margin: "0 auto",
-                  background: "var(--bg)",
-                  padding: "0 0 48px",
-                }}
-              >
-                {/* Job ticket header */}
+            <div
+              style={{
+                background: "var(--bg)",
+                color: "var(--text)",
+                minHeight: "100vh",
+                margin: "-16px -12px",
+                padding: "16px 12px",
+                transition: "background 0.25s, color 0.25s",
+              }}
+            >
+              <div className="container">
                 <div
+                  className="no-print"
                   style={{
-                    borderBottom: "2px solid var(--text)",
-                    paddingBottom: "10px",
-                    marginBottom: "24px",
+                    marginBottom: "28px",
+                    display: "flex",
+                    gap: "8px",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <div style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    justifyContent: "space-between",
-                    marginBottom: (itemProject || itemTitle || itemDate) ? "10px" : "0",
-                  }}>
-                    <div
+                  {[
+                    {
+                      label: "← Back",
+                      onClick: () => setShowTearPage(false),
+                      accent: false,
+                    },
+                    {
+                      label: "Cut List",
+                      onClick: () => {
+                        setShowTearPage(false);
+                        setShowCutList(true);
+                        window.scrollTo(0, 0);
+                      },
+                      accent: false,
+                    },
+                    {
+                      label: "Download PDF",
+                      onClick: (e) =>
+                        generatePDF("project-spec.pdf", "tear-page-content", e),
+                      accent: true,
+                    },
+                    {
+                      label: "Print",
+                      onClick: () => window.print(),
+                      accent: false,
+                    },
+                  ].map((btn) => (
+                    <button
+                      key={btn.label}
+                      onClick={btn.onClick}
                       style={{
-                        fontSize: "11px",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.12em",
-                        fontWeight: 600,
-                        color: "var(--text)",
-                      }}
-                    >
-                      Project Specification
-                    </div>
-                    <div
-                      style={{
+                        padding: "9px 18px",
                         fontSize: "10px",
-                        color: "var(--text-secondary)",
-                        letterSpacing: "0.05em",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        background: btn.accent
+                          ? "var(--accent)"
+                          : "var(--surface-alt)",
+                        color: btn.accent
+                          ? "var(--accent-text)"
+                          : "var(--text)",
+                        border: btn.accent
+                          ? "none"
+                          : "1px solid var(--border-strong)",
+                        fontWeight: 400,
                       }}
                     >
-                      {matColor} mat · {frameColor} frame ·{" "}
-                      {priorityMode === "mat" ? "mat priority" : "frame priority"}
-                    </div>
-                  </div>
-                  {(itemProject || itemTitle || itemDate) && (
-                    <div style={{ fontSize: "13px", color: "var(--text)", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "baseline" }}>
-                      {itemProject && <span style={{ fontWeight: 600 }}>{itemProject}</span>}
-                      {itemProject && itemTitle && <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>}
-                      {itemTitle && <span>{itemTitle}</span>}
-                      {(itemProject || itemTitle) && itemDate && <span style={{ color: "var(--text-secondary)" }}>{"\u2014"}</span>}
-                      {itemDate && <span style={{ color: "var(--text-secondary)", fontSize: "11px" }}>{itemDate}</span>}
-                    </div>
-                  )}
+                      {btn.label}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Note row if present */}
-                {itemNote && (
-                  <div style={{
-                    marginBottom: "24px",
-                    padding: "10px 12px",
-                    background: "var(--surface-alt)",
-                    border: "1px solid var(--border)",
-                    fontSize: "11px",
-                    color: "var(--text-secondary)",
-                    lineHeight: 1.5,
-                  }}>
-                    <span style={{ textTransform: "uppercase", letterSpacing: "0.08em", fontSize: "9px", marginRight: "8px", fontWeight: 600 }}>Note:</span>
-                    {itemNote}
-                  </div>
-                )}
-
-                {/* Write-in fields row - only show if no item info entered */}
-                {!itemProject && !itemTitle && !itemDate && (
                 <div
+                  id="tear-page-content"
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: "16px",
-                    marginBottom: "28px",
+                    maxWidth: "720px",
+                    margin: "0 auto",
+                    background: "var(--bg)",
+                    padding: "0 0 48px",
                   }}
                 >
-                  {["Project / Client", "Title / SN #", "Date"].map((label) => (
-                    <div key={label}>
+                  {/* Job ticket header */}
+                  <div
+                    style={{
+                      borderBottom: "2px solid var(--text)",
+                      paddingBottom: "10px",
+                      marginBottom: "24px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        justifyContent: "space-between",
+                        marginBottom:
+                          itemProject || itemTitle || itemDate ? "10px" : "0",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.12em",
+                          fontWeight: 600,
+                          color: "var(--text)",
+                        }}
+                      >
+                        Project Specification
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: "var(--text-secondary)",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        {matColor} mat · {frameColor} frame ·{" "}
+                        {priorityMode === "mat"
+                          ? "mat priority"
+                          : "frame priority"}
+                      </div>
+                    </div>
+                    {(itemProject || itemTitle || itemDate) && (
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--text)",
+                          display: "flex",
+                          gap: "6px",
+                          flexWrap: "wrap",
+                          alignItems: "baseline",
+                        }}
+                      >
+                        {itemProject && (
+                          <span style={{ fontWeight: 600 }}>{itemProject}</span>
+                        )}
+                        {itemProject && itemTitle && (
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            {"\u2014"}
+                          </span>
+                        )}
+                        {itemTitle && <span>{itemTitle}</span>}
+                        {(itemProject || itemTitle) && itemDate && (
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            {"\u2014"}
+                          </span>
+                        )}
+                        {itemDate && (
+                          <span
+                            style={{
+                              color: "var(--text-secondary)",
+                              fontSize: "11px",
+                            }}
+                          >
+                            {itemDate}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Note row if present */}
+                  {itemNote && (
+                    <div
+                      style={{
+                        marginBottom: "24px",
+                        padding: "10px 12px",
+                        background: "var(--surface-alt)",
+                        border: "1px solid var(--border)",
+                        fontSize: "11px",
+                        color: "var(--text-secondary)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      <span
+                        style={{
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          fontSize: "9px",
+                          marginRight: "8px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Note:
+                      </span>
+                      {itemNote}
+                    </div>
+                  )}
+
+                  {/* Write-in fields row - only show if no item info entered */}
+                  {!itemProject && !itemTitle && !itemDate && (
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr 1fr",
+                        gap: "16px",
+                        marginBottom: "28px",
+                      }}
+                    >
+                      {["Project / Client", "Title / SN #", "Date"].map(
+                        (label) => (
+                          <div key={label}>
+                            <div
+                              style={{
+                                fontSize: "9px",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.1em",
+                                color: "var(--text-secondary)",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              {label}
+                            </div>
+                            <div
+                              style={{
+                                borderBottom: "1px solid var(--border-strong)",
+                                height: "28px",
+                              }}
+                            />
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  {/* Main content: viz left, specs right */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "28px",
+                      alignItems: "flex-start",
+                      marginBottom: "28px",
+                    }}
+                  >
+                    {/* Mini visualizer */}
+                    <div style={{ flexShrink: 0 }}>
                       <div
                         style={{
                           fontSize: "9px",
                           textTransform: "uppercase",
                           letterSpacing: "0.1em",
                           color: "var(--text-secondary)",
-                          marginBottom: "6px",
+                          marginBottom: "10px",
                         }}
                       >
-                        {label}
+                        Preview
                       </div>
                       <div
                         style={{
-                          borderBottom: "1px solid var(--border-strong)",
-                          height: "28px",
+                          width: fwPx + "px",
+                          height: fhPx + "px",
+                          position: "relative",
+                          background: "var(--viz-bg)",
+                          flexShrink: 0,
                         }}
-                      />
+                      >
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: frameColors[frameColor],
+                            boxShadow:
+                              frameColor === "white"
+                                ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
+                                : "none",
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: mPx + "px",
+                            top: mPx + "px",
+                            width: matWPx + "px",
+                            height: matHPx + "px",
+                            background: mc,
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: mPx + openL + "px",
+                            top: mPx + openT + "px",
+                            width: Math.max(0, openR - openL) + "px",
+                            height: Math.max(0, openB - openT) + "px",
+                            background: artworkImage ? "#000" : "#999",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {artworkImage && (
+                            <img
+                              src={artworkImage}
+                              width={Math.round(Math.max(0, openR - openL))}
+                              height={Math.round(Math.max(0, openB - openT))}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-                )}
 
-                {/* Main content: viz left, specs right */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "28px",
-                    alignItems: "flex-start",
-                    marginBottom: "28px",
-                  }}
-                >
-                  {/* Mini visualizer */}
-                  <div style={{ flexShrink: 0 }}>
+                    {/* Spec table */}
+                    <div
+                      style={{
+                        flex: 1,
+                        border: "1px solid var(--border-strong)",
+                      }}
+                    >
+                      {[
+                        {
+                          label: "Artwork / Window",
+                          val: f(artWidth) + " × " + f(artHeight),
+                          sub: fm(artWidth) + " × " + fm(artHeight) + " mm",
+                        },
+                        {
+                          label: "Mat Outer",
+                          val: f(matOW) + " × " + f(matOH),
+                          sub: fm(matOW) + " × " + fm(matOH) + " mm",
+                        },
+                        {
+                          label: "Margins  T / B / L / R",
+                          val:
+                            f(c.topMargin) +
+                            " / " +
+                            f(c.bottomMargin) +
+                            " / " +
+                            f(c.leftMargin) +
+                            " / " +
+                            f(c.rightMargin),
+                          sub:
+                            fm(c.topMargin) +
+                            " / " +
+                            fm(c.bottomMargin) +
+                            " / " +
+                            fm(c.leftMargin) +
+                            " / " +
+                            fm(c.rightMargin) +
+                            " mm",
+                        },
+                        {
+                          label: "Frame Outer",
+                          val: f(frameOW) + " × " + f(frameOH),
+                          sub: fm(frameOW) + " × " + fm(frameOH) + " mm",
+                        },
+                        {
+                          label: "Moulding Width",
+                          val: f(mouldingWidth),
+                          sub: fm(mouldingWidth) + " mm",
+                        },
+                        ...(priorityMode === "mat" && c.frameCutWidth
+                          ? [
+                              {
+                                label: "Frame Cuts  W / H",
+                                val:
+                                  f(c.frameCutWidth) +
+                                  " / " +
+                                  f(c.frameCutHeight),
+                                sub:
+                                  "min. " + f(c.minMouldingLength) + " total",
+                              },
+                            ]
+                          : []),
+                        {
+                          label: "Rabbet Depth",
+                          val: f(c.rabbetDepth),
+                          sub: fm(c.rabbetDepth) + " mm",
+                        },
+                        {
+                          label: "Mat · Frame",
+                          val: matColor + " · " + frameColor,
+                          sub: windowMatPly + " window mat",
+                        },
+                      ].map((row, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            padding: "8px 12px",
+                            borderBottom: "1px solid var(--border)",
+                            background:
+                              i % 2 === 0 ? "var(--bg)" : "var(--surface-alt)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                            gap: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              color: "var(--text-secondary)",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {row.label}
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: 500,
+                                fontVariantNumeric: "tabular-nums",
+                                color: "var(--text)",
+                              }}
+                            >
+                              {row.val}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "9px",
+                                color: "var(--text-tertiary)",
+                                fontVariantNumeric: "tabular-nums",
+                              }}
+                            >
+                              {row.sub}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div style={{ marginBottom: "20px" }}>
                     <div
                       style={{
                         fontSize: "9px",
                         textTransform: "uppercase",
                         letterSpacing: "0.1em",
                         color: "var(--text-secondary)",
-                        marginBottom: "10px",
+                        marginBottom: "8px",
                       }}
                     >
-                      Preview
+                      Notes
                     </div>
-                    <div
-                      style={{
-                        width: fwPx + "px",
-                        height: fhPx + "px",
-                        position: "relative",
-                        background: "var(--viz-bg)",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          background: frameColors[frameColor],
-                          boxShadow:
-                            frameColor === "white"
-                              ? "inset 0 0 0 1px rgba(0,0,0,0.15)"
-                              : "none",
-                        }}
-                      />
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: mPx + "px",
-                          top: mPx + "px",
-                          width: matWPx + "px",
-                          height: matHPx + "px",
-                          background: mc,
-                        }}
-                      />
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: mPx + openL + "px",
-                          top: mPx + openT + "px",
-                          width: Math.max(0, openR - openL) + "px",
-                          height: Math.max(0, openB - openT) + "px",
-                          background: artworkImage ? "#000" : "#999",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {artworkImage && (
-                          <img
-                            src={artworkImage}
-                            width={Math.round(Math.max(0, openR - openL))}
-                            height={Math.round(Math.max(0, openB - openT))}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                              display: "block",
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Spec table */}
-                  <div
-                    style={{
-                      flex: 1,
-                      border: "1px solid var(--border-strong)",
-                    }}
-                  >
-                    {[
-                      {
-                        label: "Artwork / Window",
-                        val: f(artWidth) + " × " + f(artHeight),
-                        sub: fm(artWidth) + " × " + fm(artHeight) + " mm",
-                      },
-                      {
-                        label: "Mat Outer",
-                        val: f(matOW) + " × " + f(matOH),
-                        sub: fm(matOW) + " × " + fm(matOH) + " mm",
-                      },
-                      {
-                        label: "Margins  T / B / L / R",
-                        val:
-                          f(c.topMargin) +
-                          " / " +
-                          f(c.bottomMargin) +
-                          " / " +
-                          f(c.leftMargin) +
-                          " / " +
-                          f(c.rightMargin),
-                        sub:
-                          fm(c.topMargin) +
-                          " / " +
-                          fm(c.bottomMargin) +
-                          " / " +
-                          fm(c.leftMargin) +
-                          " / " +
-                          fm(c.rightMargin) +
-                          " mm",
-                      },
-                      {
-                        label: "Frame Outer",
-                        val: f(frameOW) + " × " + f(frameOH),
-                        sub: fm(frameOW) + " × " + fm(frameOH) + " mm",
-                      },
-                      {
-                        label: "Moulding Width",
-                        val: f(mouldingWidth),
-                        sub: fm(mouldingWidth) + " mm",
-                      },
-                      ...(priorityMode === "mat" && c.frameCutWidth
-                        ? [
-                            {
-                              label: "Frame Cuts  W / H",
-                              val:
-                                f(c.frameCutWidth) +
-                                " / " +
-                                f(c.frameCutHeight),
-                              sub: "min. " + f(c.minMouldingLength) + " total",
-                            },
-                          ]
-                        : []),
-                      {
-                        label: "Rabbet Depth",
-                        val: f(c.rabbetDepth),
-                        sub: fm(c.rabbetDepth) + " mm",
-                      },
-                      {
-                        label: "Mat · Frame",
-                        val: matColor + " · " + frameColor,
-                        sub: windowMatPly + " window mat",
-                      },
-                    ].map((row, i) => (
+                    {[0, 1, 2].map((i) => (
                       <div
                         key={i}
                         style={{
-                          padding: "8px 12px",
                           borderBottom: "1px solid var(--border)",
-                          background:
-                            i % 2 === 0 ? "var(--bg)" : "var(--surface-alt)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "baseline",
-                          gap: "12px",
+                          height: "30px",
+                          marginBottom: "8px",
                         }}
-                      >
-                        <div
-                          style={{
-                            fontSize: "9px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            color: "var(--text-secondary)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {row.label}
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div
-                            style={{
-                              fontSize: "13px",
-                              fontWeight: 500,
-                              fontVariantNumeric: "tabular-nums",
-                              color: "var(--text)",
-                            }}
-                          >
-                            {row.val}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: "9px",
-                              color: "var(--text-tertiary)",
-                              fontVariantNumeric: "tabular-nums",
-                            }}
-                          >
-                            {row.sub}
-                          </div>
-                        </div>
-                      </div>
+                      />
                     ))}
                   </div>
-                </div>
 
-                {/* Notes */}
-                <div style={{ marginBottom: "20px" }}>
+                  {/* Cut line */}
                   <div
                     style={{
-                      fontSize: "9px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
-                      color: "var(--text-secondary)",
-                      marginBottom: "8px",
+                      borderTop: "1px dashed var(--border-strong)",
+                      paddingTop: "10px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
                     }}
                   >
-                    Notes
-                  </div>
-                  {[0, 1, 2].map((i) => (
                     <div
-                      key={i}
                       style={{
-                        borderBottom: "1px solid var(--border)",
-                        height: "30px",
-                        marginBottom: "8px",
+                        fontSize: "9px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.1em",
+                        color: "var(--text-tertiary)",
                       }}
+                    >
+                      Cut here
+                    </div>
+                    <div
+                      style={{ flex: 1, borderTop: "1px dashed var(--border)" }}
                     />
-                  ))}
-                </div>
-
-                {/* Cut line */}
-                <div
-                  style={{
-                    borderTop: "1px dashed var(--border-strong)",
-                    paddingTop: "10px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: "9px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
-                      color: "var(--text-tertiary)",
-                    }}
-                  >
-                    Cut here
-                  </div>
-                  <div
-                    style={{ flex: 1, borderTop: "1px dashed var(--border)" }}
-                  />
-                  <div
-                    style={{ fontSize: "9px", color: "var(--text-tertiary)" }}
-                  >
-                    ✂
+                    <div
+                      style={{ fontSize: "9px", color: "var(--text-tertiary)" }}
+                    >
+                      ✂
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
             </div>
           );
         };
@@ -4475,8 +4577,22 @@
                       marginBottom: "14px",
                     }}
                   >
+                    <strong>Priority Modes</strong> — Frame Priority is for when
+                    you already have a frame or are working with a standard
+                    frame size. Enter the rabbet dimensions and the calculator
+                    works backward to find your mat margins. Mat Priority is for
+                    when the artwork and desired margins come first, and you
+                    need to know what frame to order or build.
+                  </div>
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      paddingBottom: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
                     <strong>Frame Priority</strong> — Enter artwork size and
-                    frame rabbet dimensions. Mat margins are calculated
+                    frame size dimensions. Mat margins are calculated
                     automatically.
                   </div>
                   <div
@@ -4487,8 +4603,40 @@
                     }}
                   >
                     <strong>Mat Priority</strong> — Enter artwork size and
-                    desired mat margins. Frame rabbet and moulding cut lengths
-                    are calculated for building a custom frame.
+                    desired mat margins. Frame size and moulding cut lengths are
+                    calculated for building a custom frame.
+                  </div>
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      paddingBottom: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <strong>Measurement Input</strong> — Tap any dimension to
+                    open the numeric keypad and type whole numbers and decimals
+                    directly. For imperial, use the fraction slider above the
+                    keypad to add fractional inches down to 1/32″. The up/down
+                    arrow buttons beside each dimension step by 1/16″ (imperial)
+                    or 1mm (metric).
+                  </div>
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      paddingBottom: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <strong>Output</strong> — The Cut List is a print-ready mat
+                    cutting diagram with dimensions, margin callouts, and a
+                    specification grid showing all measurements needed to cut
+                    the mat. The Tear Sheet is a project specification job
+                    ticket with a mini frame preview, complete spec table, and
+                    optional fields for project name, title, date, and notes. If{" "}
+                    <strong>Item Info</strong> is entered, it appears in the
+                    header of both pages — if left blank, the tear sheet
+                    includes write-in lines instead. Both pages can be printed
+                    directly from the browser or downloaded as a PDF.
                   </div>
 
                   <div
@@ -4511,9 +4659,12 @@
                     }}
                   >
                     <strong>Artwork/Window Size</strong> should be slightly
-                    smaller than the physical artwork — at least ⅛" (3mm) per
-                    side — to allow overlap behind the mat or frame.
+                    smaller than the physical artwork, at least ⅛" (3mm) per
+                    side, to allow overlap behind the mat or frame. Account for
+                    this by adjusting artwork size to include this overlap, or
+                    use Window Offset Reveal/Conceal.
                   </div>
+
                   <div
                     style={{
                       borderBottom: "1px solid var(--border)",
@@ -4521,9 +4672,11 @@
                       marginBottom: "14px",
                     }}
                   >
+                    <strong>Frame Size (Rabbet)</strong> defines the inner
+                    dimension of the frame, or the mat outer dimensions.{" "}
                     <strong>Rabbet</strong> is the inner ledge of the frame that
-                    holds the glazing, mat, artwork, and backing. Frame Size
-                    (Rabbet) defines the mat outer dimensions.
+                    holds the glazing, mat, artwork, and backing. This is the
+                    measurment frames are described.
                   </div>
                   <div
                     style={{
@@ -4532,7 +4685,37 @@
                       marginBottom: "14px",
                     }}
                   >
-                    <strong>Moulding width</strong> is measured from the outer
+                    <strong>Window Offset</strong> — Reveal means the mat
+                    opening is larger than the artwork, leaving a gap around the
+                    edge. This is sometimes used intentionally for
+                    float-mounting or revealing artist mark or signature.
+                    Conceal means the mat overlaps the artwork edges, which is
+                    the standard approach for photographs. Offsets can be linked
+                    for uniform reveal/conceal or set independently when one
+                    edge of the artwork needs less/more coverage than another.
+                  </div>
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      paddingBottom: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <strong>Bottom Margin</strong> — Equal margins are
+                    straightforward but can make artwork appear to sink slightly
+                    in the frame. Weighted adds a fixed amount to the bottom to
+                    counteract this. Golden Ratio derives the bottom margin
+                    mathematically. Optical Center shifts the artwork upward to
+                    where the eye naturally expects, usually ~3% above center.
+                  </div>
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      paddingBottom: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <strong>Moulding Width</strong> is measured from the outer
                     frame edge to the inner rabbet edge.
                   </div>
                   <div
@@ -4542,7 +4725,22 @@
                       marginBottom: "14px",
                     }}
                   >
-                    <strong>Moulding cut lengths</strong> include ⅛" (3mm)
+                    <strong>Rabbet Depth</strong> The rabbet depth calculator
+                    builds a stack-up of everything that sits inside the frame
+                    rabbet: glazing, window mat, optional spacer, back mat, and
+                    backer board. Each layer's thickness is added together and
+                    compared against the rabbet depth to show how much clearance
+                    remains or how much the stack exceeds the rabbet. The
+                    cross-section diagram shows each layer to scale.
+                  </div>
+                  <div
+                    style={{
+                      borderBottom: "1px solid var(--border)",
+                      paddingBottom: "14px",
+                      marginBottom: "14px",
+                    }}
+                  >
+                    <strong>Moulding Cut Lengths</strong> include ⅛" (3mm)
                     allowance for fitting. Minimum moulding length assumes a
                     single stick with minimal waste between miter cuts.
                   </div>
@@ -4577,9 +4775,9 @@
                       marginBottom: "14px",
                     }}
                   >
-                    Bottom weighting — adding extra mat at the bottom — gives
-                    the piece visual lift and prevents it from appearing to sag.
-                    A ½" to 1" weight is typical.
+                    Bottom weighting or adding extra mat at the bottom. This
+                    gives the piece visual lift and prevents it from appearing
+                    to sag. A ¼" to 1" weight is typical.
                   </div>
                   <div
                     style={{
@@ -4609,9 +4807,9 @@
                       marginBottom: "14px",
                     }}
                   >
-                    Standard hanging height is 57"–60" to center for residential
-                    settings, matching average eye level. Gallery standard is
-                    typically 60" to center.
+                    Standard hanging height is 57"–60" to center of artwork for
+                    residential settings, matching average eye level.
+                    Gallery/museum standard is typically 60" to center.
                   </div>
 
                   <div
@@ -4634,11 +4832,22 @@
                     }}
                   >
                     Designed and built by{" "}
-                    <strong>Christopher Cunningham</strong> — artist,
-                    photographer, and fine art fabricator based in New York
-                    City. Total Frame is a professional tool for framers,
-                    fabricators, and conservators working with collectors,
-                    galleries, and museums.
+                    <strong>Christopher Cunningham</strong> — artist and
+                    professional mounter and framer of works on paper. He is
+                    based in New York City.{" "}
+                    <p>
+                      Total Frame is a free, browser-based picture framing
+                      calculator for framers, artists, collectors, and creative
+                      professionals.
+                    </p>{" "}
+                    <a
+                      href="https://github.com/christophcunningham/totalframe"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onclick="event.stopPropagation()"
+                    >
+                      Github Page
+                    </a>
                   </div>
                   <div
                     style={{
@@ -4649,7 +4858,7 @@
                     }}
                   >
                     © {new Date().getFullYear()} Christopher Cunningham. Open
-                    source — github.com/contango
+                    source — github.com/christophcunningham/totalframe
                   </div>
                 </div>
               )}
@@ -4857,9 +5066,26 @@
                           useMetric={useMetric}
                           largeText={largeText}
                         />
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "6px",
+                            flexShrink: 0,
+                          }}
+                        >
                           <span className="dimension-x">x</span>
-                          <button className="swap-btn" onClick={() => { const w = artWidth; setArtWidth(artHeight); setArtHeight(w); }}>Swap</button>
+                          <button
+                            className="swap-btn"
+                            onClick={() => {
+                              const w = artWidth;
+                              setArtWidth(artHeight);
+                              setArtHeight(w);
+                            }}
+                          >
+                            Swap
+                          </button>
                         </div>
                         <FractionPicker
                           label="Height"
@@ -4914,9 +5140,26 @@
                             useMetric={useMetric}
                             largeText={largeText}
                           />
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "6px",
+                              flexShrink: 0,
+                            }}
+                          >
                             <span className="dimension-x">x</span>
-                            <button className="swap-btn" onClick={() => { const w = frameWidth; setFrameWidth(frameHeight); setFrameHeight(w); }}>Swap</button>
+                            <button
+                              className="swap-btn"
+                              onClick={() => {
+                                const w = frameWidth;
+                                setFrameWidth(frameHeight);
+                                setFrameHeight(w);
+                              }}
+                            >
+                              Swap
+                            </button>
                           </div>
                           <FractionPicker
                             label="Height"
@@ -4952,7 +5195,9 @@
                           padding: "6px 12px",
                           background: "var(--surface-alt)",
                           color: "var(--text)",
-                          border: sheetEnabled ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                          border: sheetEnabled
+                            ? "2px solid var(--text-tertiary)"
+                            : "2px solid var(--border)",
                           fontSize: "10px",
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
@@ -5047,9 +5292,12 @@
                           style={{
                             flex: 1,
                             padding: "8px 4px",
-                              background: "var(--surface-alt)",
-                              color: "var(--text)",
-                              border: offsetMode === m.v ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            background: "var(--surface-alt)",
+                            color: "var(--text)",
+                            border:
+                              offsetMode === m.v
+                                ? "2px solid var(--text-tertiary)"
+                                : "2px solid var(--border)",
                             fontSize: "10px",
                             textTransform: "uppercase",
                             letterSpacing: "0.04em",
@@ -5070,7 +5318,9 @@
                               padding: "6px 12px",
                               background: "var(--surface-alt)",
                               color: "var(--text)",
-                              border: offsetLinked ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                              border: offsetLinked
+                                ? "2px solid var(--text-tertiary)"
+                                : "2px solid var(--border)",
                               fontSize: "10px",
                               textTransform: "uppercase",
                               letterSpacing: "0.05em",
@@ -5261,9 +5511,12 @@
                             style={{
                               flex: 1,
                               padding: "8px 4px",
-                                background: "var(--surface-alt)",
-                                color: "var(--text)",
-                                border: marginMode === m.v ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                              background: "var(--surface-alt)",
+                              color: "var(--text)",
+                              border:
+                                marginMode === m.v
+                                  ? "2px solid var(--text-tertiary)"
+                                  : "2px solid var(--border)",
                               fontSize: "10px",
                               textTransform: "uppercase",
                               letterSpacing: "0.04em",
@@ -5345,7 +5598,9 @@
                             padding: "6px 12px",
                             background: "var(--surface-alt)",
                             color: "var(--text)",
-                            border: matMarginsLinked ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            border: matMarginsLinked
+                              ? "2px solid var(--text-tertiary)"
+                              : "2px solid var(--border)",
                             fontSize: "10px",
                             textTransform: "uppercase",
                             letterSpacing: "0.05em",
@@ -6228,9 +6483,12 @@
                           }}
                           style={{
                             padding: "8px 16px",
-                              background: "var(--surface-alt)",
-                              color: "var(--text)",
-                              border: windowMatPly === "4ply" ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            background: "var(--surface-alt)",
+                            color: "var(--text)",
+                            border:
+                              windowMatPly === "4ply"
+                                ? "2px solid var(--text-tertiary)"
+                                : "2px solid var(--border)",
                             fontSize: "10px",
                             textTransform: "uppercase",
                             letterSpacing: "0.04em",
@@ -6247,9 +6505,12 @@
                           }}
                           style={{
                             padding: "8px 16px",
-                              background: "var(--surface-alt)",
-                              color: "var(--text)",
-                              border: windowMatPly === "8ply" ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            background: "var(--surface-alt)",
+                            color: "var(--text)",
+                            border:
+                              windowMatPly === "8ply"
+                                ? "2px solid var(--text-tertiary)"
+                                : "2px solid var(--border)",
                             fontSize: "10px",
                             textTransform: "uppercase",
                             letterSpacing: "0.04em",
@@ -6315,7 +6576,9 @@
                             padding: "8px 16px",
                             background: "var(--surface-alt)",
                             color: "var(--text)",
-                            border: spacerEnabled ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            border: spacerEnabled
+                              ? "2px solid var(--text-tertiary)"
+                              : "2px solid var(--border)",
                             fontSize: "10px",
                             textTransform: "uppercase",
                             letterSpacing: "0.04em",
@@ -6850,9 +7113,12 @@
                           onClick={() => setImageFitMode("fill")}
                           style={{
                             padding: "6px 12px",
-                              background: "var(--surface-alt)",
-                              color: "var(--text)",
-                              border: imageFitMode === "fill" ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            background: "var(--surface-alt)",
+                            color: "var(--text)",
+                            border:
+                              imageFitMode === "fill"
+                                ? "2px solid var(--text-tertiary)"
+                                : "2px solid var(--border)",
                             fontSize: "12px",
                             textTransform: "uppercase",
                             letterSpacing: "0.05em",
@@ -6880,9 +7146,12 @@
                           }}
                           style={{
                             padding: "6px 12px",
-                              background: "var(--surface-alt)",
-                              color: "var(--text)",
-                              border: imageFitMode === "ratio" ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                            background: "var(--surface-alt)",
+                            color: "var(--text)",
+                            border:
+                              imageFitMode === "ratio"
+                                ? "2px solid var(--text-tertiary)"
+                                : "2px solid var(--border)",
                             fontSize: "10px",
                             textTransform: "uppercase",
                             letterSpacing: "0.05em",
@@ -6940,7 +7209,10 @@
                                 color: isDisabled
                                   ? "var(--text-secondary)"
                                   : "var(--text)",
-                                border: imageFitMode === "ratio" && ratioMode === r.v ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                                border:
+                                  imageFitMode === "ratio" && ratioMode === r.v
+                                    ? "2px solid var(--text-tertiary)"
+                                    : "2px solid var(--border)",
                                 fontSize: "10px",
                                 textTransform: "uppercase",
                                 letterSpacing: "0.04em",
@@ -6975,9 +7247,12 @@
                         onClick={() => setVizMode("closeup")}
                         style={{
                           padding: "6px 12px",
-                            background: "var(--surface-alt)",
-                            color: "var(--text)",
-                            border: vizMode === "closeup" ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                          background: "var(--surface-alt)",
+                          color: "var(--text)",
+                          border:
+                            vizMode === "closeup"
+                              ? "2px solid var(--text-tertiary)"
+                              : "2px solid var(--border)",
                           fontSize: "10px",
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
@@ -6990,9 +7265,12 @@
                         onClick={() => setVizMode("gallery")}
                         style={{
                           padding: "6px 12px",
-                            background: "var(--surface-alt)",
-                            color: "var(--text)",
-                            border: vizMode === "gallery" ? "2px solid var(--text-tertiary)" : "2px solid var(--border)",
+                          background: "var(--surface-alt)",
+                          color: "var(--text)",
+                          border:
+                            vizMode === "gallery"
+                              ? "2px solid var(--text-tertiary)"
+                              : "2px solid var(--border)",
                           fontSize: "10px",
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
@@ -7105,53 +7383,234 @@
                         })()}
                       {/* Visualization */}
                       <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                        <VizScaler>
-                          {renderVisualization()}
-                        </VizScaler>
+                        <VizScaler>{renderVisualization()}</VizScaler>
                       </div>
                     </div>
                   </Section>
 
                   {/* Item Info */}
                   <Section title="Item Info" resetKey={resetKey}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "4px" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "12px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "12px",
+                        }}
+                      >
                         <div>
-                          <label style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-secondary)", marginBottom: "4px", display: "block" }}>Project / Client</label>
-                          <input type="text" value={itemProject} onChange={(e) => setItemProject(e.target.value)} placeholder="e.g. Smith Residence" style={{ width: "100%", padding: "8px 10px", fontSize: "13px", fontFamily: "inherit", border: "1px solid var(--border-strong)", background: "var(--surface-alt)", color: "var(--text)", outline: "none" }} />
+                          <label
+                            style={{
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.1em",
+                              color: "var(--text-secondary)",
+                              marginBottom: "4px",
+                              display: "block",
+                            }}
+                          >
+                            Project / Client
+                          </label>
+                          <input
+                            type="text"
+                            value={itemProject}
+                            onChange={(e) => setItemProject(e.target.value)}
+                            placeholder="e.g. Smith Residence"
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              fontSize: "13px",
+                              fontFamily: "inherit",
+                              border: "1px solid var(--border-strong)",
+                              background: "var(--surface-alt)",
+                              color: "var(--text)",
+                              outline: "none",
+                            }}
+                          />
                         </div>
                         <div>
-                          <label style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-secondary)", marginBottom: "4px", display: "block" }}>Title / SN #</label>
-                          <input type="text" value={itemTitle} onChange={(e) => setItemTitle(e.target.value)} placeholder="e.g. Sunset #42" style={{ width: "100%", padding: "8px 10px", fontSize: "13px", fontFamily: "inherit", border: "1px solid var(--border-strong)", background: "var(--surface-alt)", color: "var(--text)", outline: "none" }} />
+                          <label
+                            style={{
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.1em",
+                              color: "var(--text-secondary)",
+                              marginBottom: "4px",
+                              display: "block",
+                            }}
+                          >
+                            Title / SN #
+                          </label>
+                          <input
+                            type="text"
+                            value={itemTitle}
+                            onChange={(e) => setItemTitle(e.target.value)}
+                            placeholder="e.g. Sunset #42"
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              fontSize: "13px",
+                              fontFamily: "inherit",
+                              border: "1px solid var(--border-strong)",
+                              background: "var(--surface-alt)",
+                              color: "var(--text)",
+                              outline: "none",
+                            }}
+                          />
                         </div>
                       </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: "12px",
+                        }}
+                      >
                         <div>
-                          <label style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-secondary)", marginBottom: "4px", display: "block" }}>Date</label>
-                          <input type="text" value={itemDate} onChange={(e) => setItemDate(e.target.value)} placeholder="e.g. 03/03/2026" style={{ width: "100%", padding: "8px 10px", fontSize: "13px", fontFamily: "inherit", border: "1px solid var(--border-strong)", background: "var(--surface-alt)", color: "var(--text)", outline: "none" }} />
+                          <label
+                            style={{
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.1em",
+                              color: "var(--text-secondary)",
+                              marginBottom: "4px",
+                              display: "block",
+                            }}
+                          >
+                            Date
+                          </label>
+                          <input
+                            type="text"
+                            value={itemDate}
+                            onChange={(e) => setItemDate(e.target.value)}
+                            placeholder="e.g. 03/03/2026"
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              fontSize: "13px",
+                              fontFamily: "inherit",
+                              border: "1px solid var(--border-strong)",
+                              background: "var(--surface-alt)",
+                              color: "var(--text)",
+                              outline: "none",
+                            }}
+                          />
                         </div>
                         <div>
-                          <label style={{ fontSize: "9px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-secondary)", marginBottom: "4px", display: "block" }}>Note</label>
-                          <input type="text" value={itemNote} onChange={(e) => setItemNote(e.target.value)} placeholder="e.g. Rush order" style={{ width: "100%", padding: "8px 10px", fontSize: "13px", fontFamily: "inherit", border: "1px solid var(--border-strong)", background: "var(--surface-alt)", color: "var(--text)", outline: "none" }} />
+                          <label
+                            style={{
+                              fontSize: "9px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.1em",
+                              color: "var(--text-secondary)",
+                              marginBottom: "4px",
+                              display: "block",
+                            }}
+                          >
+                            Note
+                          </label>
+                          <input
+                            type="text"
+                            value={itemNote}
+                            onChange={(e) => setItemNote(e.target.value)}
+                            placeholder="e.g. Rush order"
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              fontSize: "13px",
+                              fontFamily: "inherit",
+                              border: "1px solid var(--border-strong)",
+                              background: "var(--surface-alt)",
+                              color: "var(--text)",
+                              outline: "none",
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
                   </Section>
 
                   <div className="input-section" style={{ paddingTop: "14px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    {[
-                      { label: "Cut List", sub: "Mat diagram & measurements", onClick: () => { setShowCutList(true); window.scrollTo(0, 0); } },
-                      { label: "Tear Sheet", sub: "Job ticket & spec summary", onClick: () => { setShowTearPage(true); window.scrollTo(0, 0); } },
-                    ].map((box) => (
-                      <button key={box.label} onClick={box.onClick} className="cutlist-btn" style={{ background: "var(--surface-alt)", border: "1px solid var(--border-strong)", color: "var(--text)", padding: "16px 12px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", transition: "background 0.15s, color 0.15s, border-color 0.15s" }}>
-                        <div style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>{box.label}</div>
-                        <div className="cutlist-btn-sub" style={{ fontSize: "10px", color: "var(--text-secondary)", lineHeight: 1.4, transition: "color 0.15s" }}>{box.sub}</div>
-                      </button>
-                    ))}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "12px",
+                      }}
+                    >
+                      {[
+                        {
+                          label: "Cut List",
+                          sub: "Mat diagram & measurements",
+                          onClick: () => {
+                            setShowCutList(true);
+                            window.scrollTo(0, 0);
+                          },
+                        },
+                        {
+                          label: "Tear Sheet",
+                          sub: "Job ticket & spec summary",
+                          onClick: () => {
+                            setShowTearPage(true);
+                            window.scrollTo(0, 0);
+                          },
+                        },
+                      ].map((box) => (
+                        <button
+                          key={box.label}
+                          onClick={box.onClick}
+                          className="cutlist-btn"
+                          style={{
+                            background: "var(--surface-alt)",
+                            border: "1px solid var(--border-strong)",
+                            color: "var(--text)",
+                            padding: "16px 12px",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            fontFamily: "inherit",
+                            transition:
+                              "background 0.15s, color 0.15s, border-color 0.15s",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            {box.label}
+                          </div>
+                          <div
+                            className="cutlist-btn-sub"
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--text-secondary)",
+                              lineHeight: 1.4,
+                              transition: "color 0.15s",
+                            }}
+                          >
+                            {box.sub}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--border)", marginTop: "20px", paddingBottom: "50px" }} />
+                  <div
+                    style={{
+                      borderTop: "1px solid var(--border)",
+                      marginTop: "20px",
+                      paddingBottom: "50px",
+                    }}
+                  />
                 </React.Fragment>
               )}
             </div>
