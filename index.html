@@ -243,6 +243,7 @@
         gap: 6px;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
       }
       .step-btn {
         width: 36px;
@@ -327,6 +328,7 @@
         gap: 16px;
         justify-content: center;
         align-items: center;
+        min-width: 0;
       }
       .dimension-x {
         font-size: 1.3em;
@@ -663,6 +665,11 @@
         body {
           padding: 0;
           margin: 0;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
         .no-print {
           display: none !important;
@@ -1291,10 +1298,12 @@
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
-        padding: 4px 12px;
+        padding: 4px 6px;
         border-radius: 8px;
         transition: opacity 0.1s;
         position: relative;
+        overflow: hidden;
+        max-width: 100%;
       }
       .fp-value-tap:active {
         opacity: 0.6;
@@ -1797,6 +1806,8 @@
               flexDirection: "column",
               alignItems: "center",
               gap: "4px",
+              flex: "1 1 0",
+              minWidth: 0,
             }}
           >
             {label && (
@@ -1822,13 +1833,14 @@
             >
               <div
                 style={{
-                  fontSize: largeText ? "57px" : "45px",
+                  fontSize: useMetric ? (largeText ? "44px" : "34px") : (largeText ? "57px" : "45px"),
                   fontWeight: largeText ? 400 : 300,
                   lineHeight: 1,
                   color: "var(--text)",
                   display: "flex",
                   alignItems: "baseline",
                   gap: "2px",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {useMetric ? (
@@ -1836,7 +1848,7 @@
                     {combinedValue}
                     <span
                       style={{
-                        fontSize: "26px",
+                        fontSize: "20px",
                         color: "rgba(128,128,128,0.75)",
                         fontWeight: 300,
                         lineHeight: 1,
@@ -2642,6 +2654,19 @@
 
           try {
             await new Promise((resolve) => setTimeout(resolve, 150));
+
+            // Wait for all images inside the target to load
+            const imgs = element.querySelectorAll("img");
+            await Promise.all(
+              Array.from(imgs).map(
+                (img) =>
+                  new Promise((resolve) => {
+                    if (img.complete) return resolve();
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                  }),
+              ),
+            );
 
             // Letter page: 8.5" x 11" = 816 x 1056px at 96dpi
             // With 0.5" margins each side = 7.5" x 10" content = 720 x 960px
@@ -4042,20 +4067,20 @@
                       <div
                         style={{
                           position: "absolute",
-                          left: mPx + openL + "px",
-                          top: mPx + openT + "px",
-                          width: Math.max(0, openR - openL) + "px",
-                          height: Math.max(0, openB - openT) + "px",
-                          background: "#fff",
+                          left: mPx + "px",
+                          top: mPx + "px",
+                          width: matWPx + "px",
+                          height: matHPx + "px",
+                          background: mc,
                         }}
                       />
                       <div
                         style={{
                           position: "absolute",
-                          left: artL + "px",
-                          top: artT + "px",
-                          width: artWPx + "px",
-                          height: artHPx + "px",
+                          left: mPx + openL + "px",
+                          top: mPx + openT + "px",
+                          width: Math.max(0, openR - openL) + "px",
+                          height: Math.max(0, openB - openT) + "px",
                           background: artworkImage ? "#000" : "#999",
                           overflow: "hidden",
                         }}
@@ -4063,6 +4088,8 @@
                         {artworkImage && (
                           <img
                             src={artworkImage}
+                            width={Math.round(Math.max(0, openR - openL))}
+                            height={Math.round(Math.max(0, openB - openT))}
                             style={{
                               width: "100%",
                               height: "100%",
@@ -4072,17 +4099,6 @@
                           />
                         )}
                       </div>
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: mPx + "px",
-                          top: mPx + "px",
-                          width: matWPx + "px",
-                          height: matHPx + "px",
-                          background: mc,
-                          clipPath: cp,
-                        }}
-                      />
                     </div>
                   </div>
 
