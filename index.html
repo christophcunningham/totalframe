@@ -3910,6 +3910,8 @@
                 rotate: true,
                 fullSize: false, // boards come oversize, e.g. a 40 × 60 is really 40¼ × 60¼
                 bleed: 1 / 8, // oversize per side when fullSize is on
+                useKnockouts: false, // cut smaller boards from window knockouts
+                knockoutMargin: 1 / 8, // knockout = window minus this per side (bevel + clean edge)
                 v: 2, // settings version (see loadPlanSettings)
             };
             const PLAN_KEY = "totalframe-mat-plan";
@@ -3923,6 +3925,87 @@
                     return PLAN_DEFAULTS;
                 }
             };
+
+            // Knockout reuse: the piece that drops out of each window cut (window size minus
+            // `margin` per side, for the bevel and a clean edge) becomes extra stock for smaller
+            // boards of the same colour. Boards go largest-first (or smallest-first with
+            // order "small"), each into the tightest knockout space it fits (several can share
+            // one); knockouts from windows that were themselves cut from knockouts count too.
+            // Returns the boards left for the stock sheets and the knockouts that were used
+            // ({src, w, h, placed, cuts, free}).
+            function packKnockouts(
+                pieces,
+                { kerf = 0, margin = 0, rotate = true, order = "large" } = {},
+            ) {
+                const EPS = 1e-6;
+                const area = (p) => p.w * p.h;
+                const pool = pieces
+                    .filter((p) => p.board === "window")
+                    .map((p) => {
+                        const L = p.layout;
+                        const w = L.matOuterWidth - L.leftMargin - L.rightMargin - 2 * margin;
+                        const h = L.matOuterHeight - L.topMargin - L.bottomMargin - 2 * margin;
+                        return { src: p, w, h, free: [{ x: 0, y: 0, w, h }], placed: [], cuts: [] };
+                    })
+                    .filter((ko) => ko.w > 1 && ko.h > 1);
+                const rest = [];
+                const sorted = [...pieces].sort((a, b) =>
+                    order === "small" ? area(a) - area(b) : area(b) - area(a),
+                );
+                for (const p of sorted) {
+                    let best = null;
+                    for (const ko of pool) {
+                        if (ko.src === p) continue;
+                        ko.free.forEach((fr, fi) => {
+                            const opts =
+                                rotate && Math.abs(p.w - p.h) > EPS
+                                    ? [[p.w, p.h, false], [p.h, p.w, true]]
+                                    : [[p.w, p.h, false]];
+                            for (const [w, h, rot] of opts) {
+                                if (w > fr.w + EPS || h > fr.h + EPS) continue;
+                                const sc = fr.w * fr.h - w * h;
+                                if (!best || sc < best.sc - EPS) best = { ko, fi, w, h, rot, sc };
+                            }
+                        });
+                    }
+                    if (!best) {
+                        rest.push(p);
+                        continue;
+                    }
+                    const { ko, fi, w, h } = best;
+                    const fr = ko.free[fi];
+                    ko.placed.push({ ...p, src: p, x: fr.x, y: fr.y, pw: w, ph: h, rotated: best.rot });
+                    // Split what's left, keeping the bigger leftover in one piece; the first cut
+                    // runs the full length of the free space
+                    const rw = fr.w - w,
+                        rh = fr.h - h;
+                    const next = [];
+                    if (fr.w * rh >= fr.h * rw) {
+                        if (rh > EPS) ko.cuts.push({ x1: fr.x, y1: fr.y + h, x2: fr.x + fr.w, y2: fr.y + h });
+                        if (rw > EPS) ko.cuts.push({ x1: fr.x + w, y1: fr.y, x2: fr.x + w, y2: fr.y + h });
+                        next.push(
+                            { x: fr.x, y: fr.y + h + kerf, w: fr.w, h: rh - kerf },
+                            { x: fr.x + w + kerf, y: fr.y, w: rw - kerf, h },
+                        );
+                    } else {
+                        if (rw > EPS) ko.cuts.push({ x1: fr.x + w, y1: fr.y, x2: fr.x + w, y2: fr.y + fr.h });
+                        if (rh > EPS) ko.cuts.push({ x1: fr.x, y1: fr.y + h, x2: fr.x + w, y2: fr.y + h });
+                        next.push(
+                            { x: fr.x + w + kerf, y: fr.y, w: rw - kerf, h: fr.h },
+                            { x: fr.x, y: fr.y + h + kerf, w, h: rh - kerf },
+                        );
+                    }
+                    ko.free.splice(fi, 1, ...next.filter((r) => r.w > EPS && r.h > EPS));
+                }
+                return { rest, used: pool.filter((ko) => ko.placed.length) };
+            }
+            // A used knockout in the shape SheetDiagram / the PDF expect
+            const knockoutSheet = (ko) => ({
+                stock: { w: ko.w, h: ko.h },
+                placed: ko.placed,
+                cuts: ko.cuts,
+                offcuts: ko.free.filter((r) => r.w >= 2 && r.h >= 2),
+            });
 
             const OPTIMIZE_MS = 1000; // search time for the optimised layout (shared by all colours)
 
@@ -3947,21 +4030,56 @@
                 });
                 const groups = order.map((color) => {
                     const ps = byColour[color];
+                    // Knockouts: fill them largest-first and smallest-first and keep the fill whose
+                    // quick layout needs the least sheet board. Then lay out both "no knockouts" and
+                    // that fill with the full optimiser, and keep knockouts only if they still save
+                    // board — moving boards off sheets you'd buy anyway is just extra handling.
+                    const fast = { kerf: settings.kerf, trim: settings.trim, rotate: settings.rotate };
+                    const koCount = (v) => v.used.reduce((a, k) => a + k.placed.length, 0);
+                    const key = (v, r) => [r.stockArea, r.sheets.length, koCount(v)];
+                    const better = (a, b) =>
+                        a[0] < b[0] - 1e-6 ||
+                        (Math.abs(a[0] - b[0]) < 1e-6 &&
+                            (a[1] < b[1] || (a[1] === b[1] && a[2] < b[2])));
+                    const options = [{ rest: ps, used: [] }];
+                    if (settings.useKnockouts && stocks.length) {
+                        let bestFill = null;
+                        for (const order of ["large", "small"]) {
+                            const v = packKnockouts(ps, {
+                                kerf: settings.kerf,
+                                margin: settings.knockoutMargin,
+                                rotate: settings.rotate,
+                                order,
+                            });
+                            if (!v.used.length) continue;
+                            const k = key(v, packSheets(v.rest, stocks, fast));
+                            if (!bestFill || better(k, bestFill.k)) bestFill = { v, k };
+                        }
+                        if (bestFill) options.push(bestFill.v);
+                    }
+                    // Share the search time between colours by board count, then between the options
+                    const share =
+                        timeMs &&
+                        Math.max(150, (timeMs * ps.length) / pieces.length) / options.length;
+                    let chosen = { v: options[0], r: null };
+                    if (stocks.length) {
+                        chosen = null;
+                        for (const v of options) {
+                            const r = packSheets(v.rest, stocks, { ...fast, timeMs: share });
+                            if (!chosen || better(key(v, r), key(chosen.v, chosen.r)))
+                                chosen = { v, r };
+                        }
+                    }
                     return {
                         color,
                         pieces: ps,
                         jobs: [...new Set(ps.map((p) => p.job))],
-                        plan: stocks.length
-                            ? packSheets(ps, stocks, {
-                                  kerf: settings.kerf,
-                                  trim: settings.trim,
-                                  rotate: settings.rotate,
-                                  // Share the search time between colours by board count
-                                  timeMs:
-                                      timeMs &&
-                                      Math.max(150, (timeMs * ps.length) / pieces.length),
-                              })
-                            : null,
+                        knockouts: chosen.v.used,
+                        knockoutNote:
+                            settings.useKnockouts && stocks.length && !chosen.v.used.length
+                                ? "Knockouts wouldn't save any board for this colour, so none are used."
+                                : null,
+                        plan: chosen.r,
                     };
                 });
                 return { groups, problems, stocks };
@@ -3982,7 +4100,8 @@
             }
 
             // One stock sheet, drawn in inches: boards, window drop-outs, offcuts, numbered cuts
-            function SheetDiagram({ sheet, color }) {
+            // koLabels: Map of window board → boards cut from its knockout (marks "keep knockout")
+            function SheetDiagram({ sheet, color, maxWidth, koLabels }) {
                 const { stock } = sheet;
                 const f = (v) => formatInchesAscii(v, 32);
                 const fs = Math.max(0.75, stock.w / 42);
@@ -3991,7 +4110,7 @@
                         viewBox={`-0.5 -0.5 ${stock.w + 1} ${stock.h + 1}`}
                         style={{
                             width: "100%",
-                            maxWidth: stock.w > 45 ? "720px" : "560px",
+                            maxWidth: maxWidth || (stock.w > 45 ? "720px" : "560px"),
                             display: "block",
                         }}
                     >
@@ -4075,6 +4194,19 @@
                                             strokeWidth="0.06"
                                             strokeDasharray="0.35 0.25"
                                         />
+                                    )}
+                                    {win && koLabels && koLabels.has(p.src) && (
+                                        <text
+                                            x={win.x + win.w / 2}
+                                            y={win.y + win.h - lf * 0.5}
+                                            fontSize={lf * 0.6}
+                                            fontWeight="600"
+                                            fill="#1a6fb5"
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                        >
+                                            keep knockout → {koLabels.get(p.src)}
+                                        </text>
                                     )}
                                     <text
                                         x={p.x + p.pw / 2}
@@ -4206,6 +4338,31 @@
                     ...pageBtn(false),
                     padding: "6px 8px",
                     textTransform: "none",
+                };
+                // Knockout lookups: boards cut from each window's knockout, and where each board comes from
+                const koLabels = new Map(),
+                    koFrom = new Map();
+                groups.forEach((g) =>
+                    g.knockouts.forEach((ko) => {
+                        koLabels.set(
+                            ko.src,
+                            ko.placed
+                                .map((q) => `#${q.job.id} ${q.board === "window" ? "W" : "B"}`)
+                                .join(", "),
+                        );
+                        ko.placed.forEach((q) => koFrom.set(q.src, ko.src.job.id));
+                    }),
+                );
+                const koCell = (g, job) => {
+                    const lines = [];
+                    g.pieces
+                        .filter((p) => p.job === job)
+                        .forEach((p) => {
+                            const what = p.board === "window" ? "Window" : "Backer";
+                            if (koFrom.has(p)) lines.push(`${what} from #${koFrom.get(p)} knockout`);
+                            if (koLabels.has(p)) lines.push(`Keep knockout → ${koLabels.get(p)}`);
+                        });
+                    return lines.length ? lines.map((l) => <div key={l}>{l}</div>) : "—";
                 };
 
                 return (
@@ -4361,6 +4518,44 @@
                                         )}
                                     </div>
                                 </div>
+                                <div>
+                                    <div style={{ ...label, marginBottom: "6px" }}>
+                                        Knockouts
+                                    </div>
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                        <label
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "6px",
+                                                fontSize: "12px",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.useKnockouts}
+                                                onChange={(e) => set({ useKnockouts: e.target.checked })}
+                                                style={{ width: "16px", height: "16px", margin: 0 }}
+                                            />
+                                            Use knockouts
+                                        </label>
+                                        {settings.useKnockouts && (
+                                            <select
+                                                value={settings.knockoutMargin}
+                                                onChange={(e) => set({ knockoutMargin: +e.target.value })}
+                                                style={select}
+                                                title="Knockout size = window size minus this on each side (bevel + clean edge)"
+                                            >
+                                                {[1 / 16, 1 / 8, 3 / 16, 1 / 4].map((v) => (
+                                                    <option key={v} value={v}>
+                                                        −{f(v)} per side
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                             {stocks.length > 0 && (
                                 <div
@@ -4382,6 +4577,8 @@
                                                 `${f(s.h - 2 * settings.trim)} × ${f(s.w - 2 * settings.trim)}`,
                                         )
                                         .join(" and ")}
+                                    {settings.useKnockouts &&
+                                        `. Knockouts: window size minus ${f(settings.knockoutMargin)} on each side; boards that fit are cut from them instead of sheets.`}
                                 </div>
                             )}
                             {trimHint > 0 && (
@@ -4480,6 +4677,19 @@
                                             ? Math.round((100 * usedArea) / stockArea) + "%"
                                             : "—",
                                     ],
+                                    ...(settings.useKnockouts
+                                        ? [
+                                              [
+                                                  "From knockouts",
+                                                  groups.reduce(
+                                                      (a, g) =>
+                                                          a +
+                                                          g.knockouts.reduce((b, k) => b + k.placed.length, 0),
+                                                      0,
+                                                  ) + " boards",
+                                              ],
+                                          ]
+                                        : []),
                                     [
                                         "Cuts",
                                         allSheets.reduce((a, s) => a + s.cuts.length, 0),
@@ -4548,7 +4758,7 @@
                                         <table style={{ borderCollapse: "collapse", width: "100%" }}>
                                             <thead>
                                                 <tr>
-                                                    {["#", "Item", "Mount", "Boards", "Mat outer", "Window", "Top", "Bottom", "Left", "Right", "Bottom wt"].map((h) => (
+                                                    {["#", "Item", "Mount", "Boards", ...(settings.useKnockouts ? ["Knockout"] : []), "Mat outer", "Window", "Top", "Bottom", "Left", "Right", "Bottom wt"].map((h) => (
                                                         <th key={h} style={th}>
                                                             {h}
                                                         </th>
@@ -4568,6 +4778,11 @@
                                                             <td style={{ ...td, fontWeight: 500 }}>{s.itemTitle || "—"}</td>
                                                             <td style={td}>{s.mountMethod || "—"}</td>
                                                             <td style={td}>{boardsLabel(s.boards)}</td>
+                                                            {settings.useKnockouts && (
+                                                                <td style={{ ...td, fontSize: "11px", color: "#1a6fb5" }}>
+                                                                    {koCell(g, job)}
+                                                                </td>
+                                                            )}
                                                             <td style={td}>
                                                                 <Dim v={L.matOuterWidth} metric={useMetric} /> ×{" "}
                                                                 <Dim v={L.matOuterHeight} metric={useMetric} />
@@ -4631,9 +4846,48 @@
                                                         {Math.round((100 * sh.usedArea) / sh.stockArea)}% used · {sh.cuts.length} cuts
                                                     </span>
                                                 </div>
-                                                <SheetDiagram sheet={sh} color={g.color} />
+                                                <SheetDiagram sheet={sh} color={g.color} koLabels={koLabels} />
                                             </div>
                                         ))}
+
+                                    {g.knockoutNote && (
+                                        <div
+                                            style={{
+                                                fontSize: "11px",
+                                                color: "var(--text-secondary)",
+                                                marginBottom: "10px",
+                                            }}
+                                        >
+                                            {g.knockoutNote}
+                                        </div>
+                                    )}
+                                    {g.knockouts.length > 0 && (
+                                        <div style={{ marginTop: "6px" }}>
+                                            <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px" }}>
+                                                Cut from knockouts ·{" "}
+                                                <span style={{ fontWeight: 400, color: "var(--text-secondary)" }}>
+                                                    {g.knockouts.reduce((a, k) => a + k.placed.length, 0)} boards from{" "}
+                                                    {g.knockouts.length} knockout{g.knockouts.length !== 1 ? "s" : ""}
+                                                </span>
+                                            </div>
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "18px" }}>
+                                                {g.knockouts.map((ko, i) => (
+                                                    <div key={i} style={{ width: "240px", maxWidth: "100%" }}>
+                                                        <div style={{ fontSize: "11px", marginBottom: "4px" }}>
+                                                            <strong>#{ko.src.job.id} window knockout</strong> ·{" "}
+                                                            {f(ko.w)} × {f(ko.h)}
+                                                        </div>
+                                                        <SheetDiagram
+                                                            sheet={knockoutSheet(ko)}
+                                                            color={g.color}
+                                                            maxWidth="240px"
+                                                            koLabels={koLabels}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
 
@@ -4644,6 +4898,8 @@
                                 — each runs edge to edge across the piece being cut. Dashed outlines inside window boards are the
                                 window drop-outs. Hatched areas are waste; light boxes are offcuts worth keeping
                                 (2″ or more on both sides).
+                                {settings.useKnockouts &&
+                                    " Windows marked “keep knockout” feed the knockout diagrams: set the knockout aside, square it up, and cut the listed boards from it."}
                             </div>
                         </div>
                     </div>
@@ -4812,6 +5068,14 @@
                     M,
                     y,
                 );
+                if (settings.useKnockouts) {
+                    y += 4.5;
+                    pdf.text(
+                        `Knockouts reused: window size minus ${f(settings.knockoutMargin)} on each side`,
+                        M,
+                        y,
+                    );
+                }
                 y += 3;
                 pdf.setDrawColor(0);
                 pdf.setLineWidth(0.5);
@@ -4986,6 +5250,50 @@
                         drawSheet(sh, g.color, M, y, s);
                         y += h + 3;
                     });
+
+                    if (g.knockoutNote) {
+                        if (y + 8 > PH - M) newPage();
+                        y += 5;
+                        pdf.setFont("helvetica", "normal");
+                        pdf.setFontSize(7.5);
+                        pdf.setTextColor(100);
+                        pdf.text(g.knockoutNote, M, y);
+                    }
+                    // Knockouts reused for this colour: three small diagrams per row
+                    if (g.knockouts.length) {
+                        if (y + 24 > PH - M) newPage();
+                        y += 6;
+                        pdf.setFont("helvetica", "bold");
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(0);
+                        pdf.text("Cut from knockouts", M, y);
+                        y += 2;
+                        const cellW = (CW - 12) / 3;
+                        let col = 0,
+                            rowH = 0;
+                        g.knockouts.forEach((ko) => {
+                            const s = Math.min(cellW / ko.w, 45 / ko.h);
+                            const h = ko.h * s;
+                            if (col === 0 && y + h + 12 > PH - M) newPage();
+                            const x0 = M + col * (cellW + 6);
+                            pdf.setFont("helvetica", "normal");
+                            pdf.setFontSize(7.5);
+                            pdf.setTextColor(60);
+                            pdf.text(
+                                fit(`#${ko.src.job.id} window knockout  ${f(ko.w)} x ${f(ko.h)}`, cellW),
+                                x0,
+                                y + 4,
+                            );
+                            drawSheet(knockoutSheet(ko), g.color, x0, y + 6, s);
+                            rowH = Math.max(rowH, h + 10);
+                            if (++col === 3) {
+                                col = 0;
+                                y += rowH;
+                                rowH = 0;
+                            }
+                        });
+                        if (col) y += rowH;
+                    }
                 });
 
                 const safe = (projectName || "mat").replace(/[\\/:*?"<>|]+/g, "-");
