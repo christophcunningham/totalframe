@@ -2,7 +2,10 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+        />
         <title>Total Frame — Pro Picture Framing Calculator</title>
         <link rel="apple-touch-icon" href="icon.png" />
         <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -86,7 +89,12 @@
                 font-family:
                     "Gill Sans", "Gill Sans MT", "Trebuchet MS", sans-serif;
                 background: var(--bg);
-                padding: 16px 12px;
+                /* viewport-fit=cover lets the page reach the screen edges; keep content out of
+                   the notch / home-bar areas on iPhone (no change elsewhere) */
+                padding: max(16px, env(safe-area-inset-top, 0px))
+                    max(12px, env(safe-area-inset-right, 0px))
+                    max(16px, env(safe-area-inset-bottom, 0px))
+                    max(12px, env(safe-area-inset-left, 0px));
                 -webkit-user-select: none;
                 user-select: none;
                 color: var(--text);
@@ -514,7 +522,12 @@
                 bottom: 0;
                 z-index: 201;
                 border-radius: 20px 20px 0 0;
-                padding-bottom: env(safe-area-inset-bottom, 0);
+                /* Keep the bottom keys clear of the iPhone home bar (needs viewport-fit=cover),
+                   and never taller than the visible screen */
+                padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px);
+                max-height: 100vh;
+                max-height: 100dvh;
+                overflow-y: auto;
                 box-shadow: 0 -16px 56px #0008;
                 display: none;
                 flex-direction: column;
@@ -1308,6 +1321,76 @@
                 transform: scale(0.95);
             }
 
+            /* Tall CLR key down the right edge; ENTER is the solid bottom-right key */
+            .kp-clr.kp-clr-tall {
+                writing-mode: vertical-rl;
+                font-size: 12px;
+                letter-spacing: 0.1em;
+                padding: 14px 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                align-self: stretch;
+            }
+            .kp-clr.kp-clr-tall:active {
+                transform: scale(0.95);
+            }
+            .kp-enter-btn.kp-enter-key {
+                writing-mode: horizontal-tb;
+                padding: 15px 0;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            html:not(.theme-dark):not(.theme-gray):not(.theme-yellow)
+                .kp-enter-btn.kp-enter-key {
+                background: #008ff8;
+                border-color: #008ff8;
+                color: #fff;
+            }
+            html:not(.theme-dark):not(.theme-gray):not(.theme-yellow)
+                .kp-enter-btn.kp-enter-key:active {
+                background: #0070c4;
+            }
+            html.theme-dark .kp-enter-btn.kp-enter-key {
+                background: #ff4444;
+                border-color: #ff4444;
+                color: #111;
+            }
+            html.theme-dark .kp-enter-btn.kp-enter-key:active {
+                background: #d83030;
+            }
+            html.theme-gray .kp-enter-btn.kp-enter-key {
+                background: #00af3c;
+                border-color: #00af3c;
+                color: #fff;
+            }
+            html.theme-gray .kp-enter-btn.kp-enter-key:active {
+                background: #008f30;
+            }
+            html.theme-yellow .kp-enter-btn.kp-enter-key {
+                background: #0099bb;
+                border-color: #0099bb;
+                color: #fff;
+            }
+            html.theme-yellow .kp-enter-btn.kp-enter-key:active {
+                background: #007a96;
+            }
+
+            /* Short phones: slightly shorter keys so the whole keypad fits on screen */
+            @media (max-height: 740px) {
+                .kp-num,
+                .kp-dot,
+                .kp-clr,
+                .kp-enter-btn.kp-enter-key {
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                }
+                .kp-body {
+                    gap: 5px;
+                    padding-top: 7px;
+                }
+            }
+
             /* Tappable value display */
             .fp-value-tap {
                 display: flex;
@@ -1471,6 +1554,8 @@
                 const sliderN = useRef(0); // live value while dragging (state lags a render)
                 const sliderGrab = useRef(0); // finger offset from thumb centre, in steps
                 const sliderHist = useRef([]); // [{t, n}] value changes during the current drag
+                const lastTouchAt = useRef(0); // to ignore iOS's emulated mouse events after a touch
+                const trackHandlers = useRef({}); // latest slider handlers for the native listeners
                 const kpRef = useRef(null);
                 const dragStartY = useRef(null);
                 const dragStartTop = useRef(null);
@@ -1796,9 +1881,9 @@
                     sliderDragging.current = false;
                     trackRef.current?.classList.remove("dragging");
                     if (!isTouch) return;
-                    // A lifting finger rolls the contact point a few pixels; undo a
-                    // single-step change made in the last moment before release
-                    const cutoff = performance.now() - 90;
+                    // A lifting finger rolls the contact point several pixels (1–2 ticks at 1/32");
+                    // undo a small change made in the last moment before release
+                    const cutoff = performance.now() - 150;
                     const hist = sliderHist.current;
                     let settled = null;
                     for (let i = hist.length - 1; i >= 0; i--) {
@@ -1807,15 +1892,48 @@
                             break;
                         }
                     }
-                    if (
-                        settled !== null &&
-                        Math.abs(settled - sliderN.current) === 1
-                    ) {
+                    const drift =
+                        settled === null ? 0 : Math.abs(settled - sliderN.current);
+                    if (drift >= 1 && drift <= 2) {
                         sliderN.current = settled;
                         setFracN(settled);
                         renderFracSlider(settled);
                     }
                 };
+
+                // Touch listeners go on the track natively, non-passive, so preventDefault works
+                // (React's touch listeners are passive). That stops iOS sending emulated mouse
+                // events after a short drag, which used to re-tap the slider on lift.
+                trackHandlers.current = { onTrackStart, onTrackMove, onTrackEnd };
+                useEffect(() => {
+                    const el = trackRef.current;
+                    if (!open || !el) return;
+                    const start = (e) => {
+                        e.preventDefault();
+                        lastTouchAt.current = Date.now();
+                        trackHandlers.current.onTrackStart(e.touches[0].clientX);
+                    };
+                    const move = (e) => {
+                        e.preventDefault();
+                        trackHandlers.current.onTrackMove(e.touches[0].clientX);
+                    };
+                    const end = (e) => {
+                        e.preventDefault();
+                        lastTouchAt.current = Date.now();
+                        trackHandlers.current.onTrackEnd(true);
+                    };
+                    const cancel = () => trackHandlers.current.onTrackEnd(false);
+                    el.addEventListener("touchstart", start, { passive: false });
+                    el.addEventListener("touchmove", move, { passive: false });
+                    el.addEventListener("touchend", end, { passive: false });
+                    el.addEventListener("touchcancel", cancel);
+                    return () => {
+                        el.removeEventListener("touchstart", start);
+                        el.removeEventListener("touchmove", move);
+                        el.removeEventListener("touchend", end);
+                        el.removeEventListener("touchcancel", cancel);
+                    };
+                }, [open]);
 
                 if (!open) return null;
 
@@ -1994,17 +2112,10 @@
                                 <div
                                     ref={trackRef}
                                     className="kp-track-wrap"
-                                    onTouchStart={(e) => {
-                                        e.preventDefault();
-                                        onTrackStart(e.touches[0].clientX);
-                                    }}
-                                    onTouchMove={(e) => {
-                                        e.preventDefault();
-                                        onTrackMove(e.touches[0].clientX);
-                                    }}
-                                    onTouchEnd={() => onTrackEnd(true)}
-                                    onTouchCancel={() => onTrackEnd(false)}
+                                    // Touch is handled by native listeners (see useEffect above)
                                     onMouseDown={(e) => {
+                                        // Ignore mouse events a browser emulates right after a touch
+                                        if (Date.now() - lastTouchAt.current < 800) return;
                                         onTrackStart(e.clientX);
                                         const mm = (e2) =>
                                             onTrackMove(e2.clientX);
@@ -2082,22 +2193,22 @@
                                         0
                                     </button>
                                     <button
-                                        className="kp-clr"
-                                        onClick={() => {
-                                            setBuf("");
-                                            setFracN(0);
-                                            renderFracSlider(0);
-                                        }}
+                                        className="kp-enter-btn kp-enter-key"
+                                        onClick={doCommit}
                                     >
-                                        CLR
+                                        ENTER
                                     </button>
                                 </div>
                                 <button
-                                    className="kp-enter-btn"
+                                    className="kp-clr kp-clr-tall"
                                     style={{ gridColumn: 4, gridRow: "1 / 5" }}
-                                    onClick={doCommit}
+                                    onClick={() => {
+                                        setBuf("");
+                                        setFracN(0);
+                                        renderFracSlider(0);
+                                    }}
                                 >
-                                    ENTER
+                                    CLR
                                 </button>
                             </div>
                         </div>
@@ -2777,10 +2888,18 @@
             }
 
             // Guillotine sheet nesting (cutlistoptimizer-style). Every cut runs edge to edge across
-            // the piece of board it splits, so plans can be cut on a straight-line cutter. Tries
-            // several orderings/heuristics and keeps the plan with the least board area, then the
-            // fewest sheets, then the fewest cuts. Stock sizes are {w, h, name}.
-            function packSheets(pieces, stocks, { kerf = 0, trim = 0, rotate = true } = {}) {
+            // the piece of board it splits, so plans can be cut on a straight-line cutter.
+            //  1. Fast pass: first-fit-decreasing with several orders × placement × split rules.
+            //  2. Look-ahead pass (when timeMs > 0): each board is placed where a quick trial fill
+            //     of the space it leaves packs the most board ("pilot" method), sheet by sheet.
+            //  3. Until the time budget runs out: repack the least-full sheet together with one or
+            //     two others, keeping changes that save a sheet or push waste onto one sheet.
+            // Plans compare on least board area, then fewest sheets, then fewest cuts.
+            function packSheets(
+                pieces,
+                stocks,
+                { kerf = 0, trim = 0, rotate = true, timeMs = 0, seed = 1 } = {},
+            ) {
                 const EPS = 1e-6;
                 const usable = stocks.map((st) => ({
                     ...st,
@@ -2793,118 +2912,312 @@
                 const unplaceable = pieces.filter((p) => !usable.some((s) => fits(p, s)));
                 const todo = pieces.filter((p) => !unplaceable.includes(p));
                 const area = (p) => p.w * p.h;
-                const big = todo.length > 150; // trim the search on very large batches
-                const sorts = [
-                    (a, b) => area(b) - area(a),
-                    (a, b) =>
-                        Math.max(b.w, b.h) - Math.max(a.w, a.h) || area(b) - area(a),
-                    (a, b) => b.w + b.h - (a.w + a.h),
-                    (a, b) =>
-                        Math.min(b.w, b.h) - Math.min(a.w, a.h) || area(b) - area(a),
-                ].slice(0, big ? 2 : 4);
+                const stockArea = (st) => st.w * st.h;
+                const byArea = (a, b) => area(b) - area(a);
+                const t0 = Date.now();
+                const timeLeft = () => timeMs > 0 && Date.now() - t0 < timeMs;
+
+                // Seeded PRNG (mulberry32) so the same batch always gives the same plan
+                let rs = seed >>> 0 || 1;
+                const rng = () => {
+                    rs = (rs + 0x6d2b79f5) | 0;
+                    let t = Math.imul(rs ^ (rs >>> 15), 1 | rs);
+                    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+                };
+
+                const orients = (p) =>
+                    rotate && Math.abs(p.w - p.h) > EPS
+                        ? [[p.w, p.h, false], [p.h, p.w, true]]
+                        : [[p.w, p.h, false]];
+
+                // Split free rect R after putting a w×h board in its top-left corner. The first cut
+                // runs R's full length (across if horizFirst, else down); the second trims the board.
+                const splitAt = (R, w, h, horizFirst, withCuts) => {
+                    const rw = R.w - w,
+                        rh = R.h - h;
+                    const rects = horizFirst
+                        ? [
+                              { x: R.x, y: R.y + h + kerf, w: R.w, h: rh - kerf },
+                              { x: R.x + w + kerf, y: R.y, w: rw - kerf, h },
+                          ]
+                        : [
+                              { x: R.x + w + kerf, y: R.y, w: rw - kerf, h: R.h },
+                              { x: R.x, y: R.y + h + kerf, w, h: rh - kerf },
+                          ];
+                    const out = { rects: rects.filter((r) => r.w > EPS && r.h > EPS) };
+                    if (withCuts) {
+                        const H = rh > EPS && { x1: R.x, y1: R.y + h, x2: R.x + (horizFirst ? R.w : w), y2: R.y + h };
+                        const V = rw > EPS && { x1: R.x + w, y1: R.y, x2: R.x + w, y2: R.y + (horizFirst ? h : R.h) };
+                        out.cuts = (horizFirst ? [H, V] : [V, H]).filter(Boolean);
+                    }
+                    return out;
+                };
+                const layouts = (R, w, h, dims) => {
+                    const out = [splitAt(R, w, h, true, true), splitAt(R, w, h, false, true)];
+                    const ok = (r) => r.w > EPS && r.h > EPS;
+                    for (const x of dims) {
+                        // Vertical strip of width x holding the board at its top
+                        if (x > w + kerf + EPS && x < R.w + EPS) {
+                            const rects = [
+                                { x: R.x + x + kerf, y: R.y, w: R.w - x - kerf, h: R.h },
+                                { x: R.x, y: R.y + h + kerf, w: x, h: R.h - h - kerf },
+                                { x: R.x + w + kerf, y: R.y, w: x - w - kerf, h },
+                            ].filter(ok);
+                            const cuts = [];
+                            if (R.w - x > EPS) cuts.push({ x1: R.x + x, y1: R.y, x2: R.x + x, y2: R.y + R.h });
+                            if (R.h - h > EPS) cuts.push({ x1: R.x, y1: R.y + h, x2: R.x + x, y2: R.y + h });
+                            cuts.push({ x1: R.x + w, y1: R.y, x2: R.x + w, y2: R.y + h });
+                            out.push({ rects, cuts });
+                        }
+                        // Horizontal band of height x holding the board at its left
+                        if (x > h + kerf + EPS && x < R.h + EPS) {
+                            const rects = [
+                                { x: R.x, y: R.y + x + kerf, w: R.w, h: R.h - x - kerf },
+                                { x: R.x + w + kerf, y: R.y, w: R.w - w - kerf, h: x },
+                                { x: R.x, y: R.y + h + kerf, w, h: x - h - kerf },
+                            ].filter(ok);
+                            const cuts = [];
+                            if (R.h - x > EPS) cuts.push({ x1: R.x, y1: R.y + x, x2: R.x + R.w, y2: R.y + x });
+                            if (R.w - w > EPS) cuts.push({ x1: R.x + w, y1: R.y, x2: R.x + w, y2: R.y + x });
+                            cuts.push({ x1: R.x, y1: R.y + h, x2: R.x + w, y2: R.y + h });
+                            out.push({ rects, cuts });
+                        }
+                    }
+                    return out;
+                };
+                const ruleHoriz = (rule, R, w, h) => {
+                    const rw = R.w - w,
+                        rh = R.h - h;
+                    return rule === "short" ? rw <= rh : rule === "long" ? rw > rh : R.w * rh >= R.h * rw;
+                };
+
                 const scores = [
                     (fr, w, h) => fr.w * fr.h - w * h, // best area fit
                     (fr, w, h) => Math.min(fr.w - w, fr.h - h), // best short side fit
                     (fr, w, h) => Math.max(fr.w - w, fr.h - h), // best long side fit
-                ].slice(0, big ? 2 : 3);
-                const splitRules = ["short", "long", "area"];
+                ];
+                const bestSpot = (free, p, score) => {
+                    let best = null;
+                    for (let fi = 0; fi < free.length; fi++) {
+                        const fr = free[fi];
+                        for (const [w, h, rot] of orients(p)) {
+                            if (w > fr.w + EPS || h > fr.h + EPS) continue;
+                            const sc = score(fr, w, h);
+                            if (!best || sc < best.sc - EPS) best = { fi, w, h, rot, sc };
+                        }
+                    }
+                    return best;
+                };
 
-                // Fill one sheet with as many of the remaining pieces as fit
-                const fillSheet = (stock, remaining, score, rule) => {
-                    let free = [{ x: trim, y: trim, w: stock.uw, h: stock.uh }];
-                    const placed = [],
-                        cuts = [],
-                        left = [];
-                    for (const p of remaining) {
-                        let best = null;
-                        free.forEach((fr, fi) => {
-                            const opts = [[p.w, p.h, false]];
-                            if (rotate && Math.abs(p.w - p.h) > EPS)
-                                opts.push([p.h, p.w, true]);
-                            for (const [w, h, rot] of opts) {
-                                if (w > fr.w + EPS || h > fr.h + EPS) continue;
-                                const sc = score(fr, w, h);
-                                if (!best || sc < best.sc - EPS)
-                                    best = { fi, w, h, rot, sc };
-                            }
-                        });
-                        if (!best) {
+                const newSheet = (st) => ({ stock: st, free: [], placed: [], cuts: [], used: 0 });
+                const place = (sh, R, p, w, h, rot, horizFirst) => {
+                    sh.placed.push({ ...p, src: p, x: R.x, y: R.y, pw: w, ph: h, rotated: rot });
+                    sh.used += area(p);
+                    const { rects, cuts } = splitAt(R, w, h, horizFirst, true);
+                    sh.cuts.push(...cuts);
+                    return rects;
+                };
+
+                // Greedy decoder: fill a sheet from `order` into the best free rect for each board
+                const greedyFill = (st, order, score, rule) => {
+                    const sh = newSheet(st);
+                    sh.free = [{ x: trim, y: trim, w: st.uw, h: st.uh }];
+                    const left = [];
+                    for (const p of order) {
+                        const s = bestSpot(sh.free, p, score);
+                        if (!s) {
                             left.push(p);
                             continue;
                         }
-                        const fr = free[best.fi];
-                        const { w, h } = best;
-                        placed.push({ ...p, x: fr.x, y: fr.y, pw: w, ph: h, rotated: best.rot });
-                        const rw = fr.w - w,
-                            rh = fr.h - h;
-                        // The first cut runs the full length of the free board; decide which way
-                        const horizFirst =
-                            rule === "short"
-                                ? rw <= rh
-                                : rule === "long"
-                                  ? rw > rh
-                                  : fr.w * rh >= fr.h * rw;
-                        const next = [];
-                        if (horizFirst) {
-                            if (rh > EPS)
-                                cuts.push({ x1: fr.x, y1: fr.y + h, x2: fr.x + fr.w, y2: fr.y + h });
-                            if (rw > EPS)
-                                cuts.push({ x1: fr.x + w, y1: fr.y, x2: fr.x + w, y2: fr.y + h });
-                            next.push(
-                                { x: fr.x, y: fr.y + h + kerf, w: fr.w, h: rh - kerf },
-                                { x: fr.x + w + kerf, y: fr.y, w: rw - kerf, h },
-                            );
-                        } else {
-                            if (rw > EPS)
-                                cuts.push({ x1: fr.x + w, y1: fr.y, x2: fr.x + w, y2: fr.y + fr.h });
-                            if (rh > EPS)
-                                cuts.push({ x1: fr.x, y1: fr.y + h, x2: fr.x + w, y2: fr.y + h });
-                            next.push(
-                                { x: fr.x + w + kerf, y: fr.y, w: rw - kerf, h: fr.h },
-                                { x: fr.x, y: fr.y + h + kerf, w, h: rh - kerf },
-                            );
-                        }
-                        free.splice(
-                            best.fi,
-                            1,
-                            ...next.filter((r) => r.w > EPS && r.h > EPS),
-                        );
+                        const R = sh.free[s.fi];
+                        sh.free.splice(s.fi, 1, ...place(sh, R, p, s.w, s.h, s.rot, ruleHoriz(rule, R, s.w, s.h)));
                     }
-                    return { placed, cuts, free, left };
+                    return { sh, left };
                 };
 
-                const solve = (stockSet, sortFn, score, rule) => {
+                // Quick trial: how much board area would a greedy fill of these rects pack?
+                const trialArea = (rects, sorted) => {
+                    const free = rects.map((r) => ({ ...r }));
+                    let a = 0;
+                    for (const p of sorted) {
+                        const s = bestSpot(free, p, scores[0]);
+                        if (!s) continue;
+                        const R = free[s.fi];
+                        free.splice(s.fi, 1, ...splitAt(R, s.w, s.h, ruleHoriz("area", R, s.w, s.h), false).rects);
+                        a += area(p);
+                    }
+                    return a;
+                };
+
+                // Look-ahead fill of one sheet: in each free region try every distinct board size ×
+                // rotation × cut direction, score it by a trial fill of what's left, commit the best
+                const pilotFill = (st, remaining, noise, strips = true) => {
+                    const sh = newSheet(st);
+                    let avail = [...remaining].sort(byArea);
+                    const regions = [{ x: trim, y: trim, w: st.uw, h: st.uh }];
+                    while (regions.length) {
+                        const R = regions.pop();
+                        const seen = new Set(),
+                            cands = [];
+                        for (const p of avail) {
+                            const k = Math.min(p.w, p.h) + "x" + Math.max(p.w, p.h);
+                            if (seen.has(k) || !orients(p).some(([w, h]) => w <= R.w + EPS && h <= R.h + EPS))
+                                continue;
+                            seen.add(k);
+                            cands.push(p);
+                            if (cands.length >= 10) break;
+                        }
+                        if (!cands.length) {
+                            sh.free.push(R);
+                            continue;
+                        }
+                        // Strip widths to try: the board sizes still waiting (largest few)
+                        const dims = !strips ? [] : [...new Set(avail.flatMap((q) => [q.w, q.h]))]
+                            .sort((a, b) => b - a)
+                            .slice(0, avail.length > 40 ? 4 : 8);
+                        let best = null;
+                        for (const p of cands) {
+                            const rest = avail.filter((q) => q !== p);
+                            for (const [w, h, rot] of orients(p)) {
+                                if (w > R.w + EPS || h > R.h + EPS) continue;
+                                for (const lay of layouts(R, w, h, dims)) {
+                                    const val =
+                                        area(p) +
+                                        trialArea(lay.rects, rest) +
+                                        (noise ? noise() * 0.02 * area(p) : 0);
+                                    if (!best || val > best.val + EPS) best = { p, w, h, rot, lay, val };
+                                }
+                            }
+                        }
+                        sh.placed.push({ ...best.p, src: best.p, x: R.x, y: R.y, pw: best.w, ph: best.h, rotated: best.rot });
+                        sh.used += area(best.p);
+                        sh.cuts.push(...best.lay.cuts);
+                        regions.push(...best.lay.rects);
+                        avail = avail.filter((q) => q !== best.p);
+                    }
+                    return { sh, left: avail };
+                };
+
+                // Which fill makes the better next sheet? Finish on the smallest stock that holds
+                // everything left; otherwise the fullest sheet (then fewer cuts).
+                const betterFill = (a, b) => {
+                    if (!b) return true;
+                    const aDone = !a.left.length,
+                        bDone = !b.left.length;
+                    if (aDone !== bDone) return aDone;
+                    if (aDone) {
+                        const d = stockArea(a.sh.stock) - stockArea(b.sh.stock);
+                        if (Math.abs(d) > EPS) return d < 0;
+                        return a.sh.cuts.length < b.sh.cuts.length;
+                    }
+                    const ua = a.sh.used / stockArea(a.sh.stock),
+                        ub = b.sh.used / stockArea(b.sh.stock);
+                    if (Math.abs(ua - ub) > 1e-9) return ua > ub;
+                    return a.sh.cuts.length < b.sh.cuts.length;
+                };
+
+                const sorts = [
+                    byArea,
+                    (a, b) => Math.max(b.w, b.h) - Math.max(a.w, a.h) || byArea(a, b),
+                    (a, b) => b.w + b.h - (a.w + a.h),
+                    (a, b) => Math.min(b.w, b.h) - Math.min(a.w, a.h) || byArea(a, b),
+                ];
+                const big = todo.length > 150;
+
+                // Fast pass: whole plans from one order + rule each (first-fit decreasing)
+                const solveGreedy = (set, sortFn, score, rule) => {
                     let remaining = [...todo].sort(sortFn);
                     const sheets = [];
                     while (remaining.length) {
-                        // Try each stock size for the next sheet: finish the job on the smallest
-                        // sheet that holds everything left, otherwise take the fullest sheet
                         let pick = null;
-                        for (const st of stockSet) {
-                            const r = fillSheet(st, remaining, score, rule);
-                            if (!r.placed.length) continue;
-                            const util =
-                                r.placed.reduce((a, p) => a + area(p), 0) / (st.w * st.h);
-                            const cand = { st, r, util, done: !r.left.length };
-                            if (
-                                !pick ||
-                                (cand.done &&
-                                    (!pick.done || st.w * st.h < pick.st.w * pick.st.h)) ||
-                                (!cand.done && !pick.done && util > pick.util + 1e-9)
-                            )
-                                pick = cand;
+                        for (const st of set) {
+                            const c = greedyFill(st, remaining, score, rule);
+                            if (c.sh.placed.length && betterFill(c, pick)) pick = c;
                         }
                         if (!pick) break;
-                        sheets.push({
-                            stock: pick.st,
-                            placed: pick.r.placed,
-                            cuts: pick.r.cuts,
-                            free: pick.r.free,
-                        });
-                        remaining = pick.r.left;
+                        sheets.push(pick.sh);
+                        remaining = pick.left;
                     }
                     return sheets;
                 };
+
+                // Look-ahead pass: sheet by sheet with pilotFill on each stock size
+                const solvePilot = (set, list, noise, strips = true) => {
+                    let remaining = list;
+                    const sheets = [];
+                    while (remaining.length) {
+                        let pick = null;
+                        for (const st of set) {
+                            const c = pilotFill(st, remaining, noise, strips);
+                            if (c.sh.placed.length && betterFill(c, pick)) pick = c;
+                        }
+                        if (!pick) break;
+                        sheets.push(pick.sh);
+                        remaining = pick.left;
+                    }
+                    return sheets;
+                };
+
+                const planKey = (sheets) => [
+                    sheets.reduce((a, s) => a + stockArea(s.stock), 0),
+                    sheets.length,
+                    sheets.reduce((a, s) => a + s.cuts.length, 0),
+                ];
+                const better = (k, b) =>
+                    k[0] < b[0] - EPS ||
+                    (Math.abs(k[0] - b[0]) < EPS && (k[1] < b[1] || (k[1] === b[1] && k[2] < b[2])));
+                // Rewards uneven fill: waste concentrated on one sheet is easier to eliminate
+                const spread = (sheets) =>
+                    sheets.reduce((a, s) => a + (s.used / stockArea(s.stock)) ** 2, 0);
+
+                // Repack the least-full sheet with 1–2 others; keep if it saves a sheet/board or
+                // concentrates the waste
+                const improve = (sheets, set) => {
+                    let cur = sheets,
+                        stale = 0; // give up on this start after 40 tries without a real gain
+                    while (timeLeft() && cur.length > 1 && stale < 40) {
+                        const sorted = [...cur].sort((a, b) => a.used / stockArea(a.stock) - b.used / stockArea(b.stock));
+                        const weak = sorted[0];
+                        const others = sorted.slice(1);
+                        const k = 1 + (rng() < 0.5 && others.length > 1 ? 1 : 0);
+                        const group = [weak];
+                        while (group.length < k + 1) {
+                            const o = others[Math.floor(rng() * Math.min(others.length, 6))];
+                            if (!group.includes(o)) group.push(o);
+                        }
+                        const ps = group.flatMap((s) => s.placed.map((pl) => pl.src));
+                        const trial = solvePilot(set, ps, rng, rng() < 0.5);
+                        if (trial.reduce((a, s) => a + s.placed.length, 0) !== ps.length) {
+                            stale++;
+                            continue;
+                        }
+                        const next = cur.filter((s) => !group.includes(s)).concat(trial);
+                        const kn = planKey(next),
+                            kc = planKey(cur);
+                        if (better(kn, kc)) {
+                            cur = next;
+                            stale = 0;
+                        } else {
+                            if (!better(kc, kn) && spread(next) > spread(cur) + 1e-9) cur = next;
+                            stale++;
+                        }
+                    }
+                    return cur;
+                };
+
+                // Re-cut a sheet's boards on a smaller stock size when they all still fit
+                const downsize = (sheets) =>
+                    sheets.map((sh) => {
+                        const ps = sh.placed.map((pl) => pl.src);
+                        for (const st of usable
+                            .filter((s) => stockArea(s) < stockArea(sh.stock) - EPS)
+                            .sort((a, b) => stockArea(a) - stockArea(b))) {
+                            const c = pilotFill(st, ps);
+                            if (!c.left.length) return c.sh;
+                        }
+                        return sh;
+                    });
 
                 const stockSets = [
                     usable,
@@ -2912,47 +3225,68 @@
                         ? usable.filter((s) => todo.every((p) => fits(p, s))).map((s) => [s])
                         : []),
                 ];
+                const minSheets = Math.ceil(
+                    todo.reduce((a, p) => a + area(p), 0) / Math.max(1, ...usable.map((s) => s.uw * s.uh)) - EPS,
+                );
                 let best = null;
+                const consider = (sheets, set) => {
+                    const k = planKey(sheets);
+                    if (!best || better(k, best.key)) best = { sheets, key: k, set };
+                };
+                const optimal = () => usable.length === 1 && best && best.key[1] <= minSheets;
+
+                // 1. Fast pass
                 for (const set of stockSets)
-                    for (const sortFn of sorts)
-                        for (const score of scores)
-                            for (const rule of splitRules) {
-                                const sheets = solve(set, sortFn, score, rule);
-                                const key = [
-                                    sheets.reduce((a, s) => a + s.stock.w * s.stock.h, 0),
-                                    sheets.length,
-                                    sheets.reduce((a, s) => a + s.cuts.length, 0),
-                                ];
-                                const better =
-                                    !best ||
-                                    key[0] < best.key[0] - EPS ||
-                                    (Math.abs(key[0] - best.key[0]) < EPS &&
-                                        (key[1] < best.key[1] ||
-                                            (key[1] === best.key[1] && key[2] < best.key[2])));
-                                if (better) best = { sheets, key };
-                            }
+                    for (const sortFn of sorts.slice(0, big ? 2 : 4))
+                        for (const score of scores.slice(0, big ? 2 : 3))
+                            for (const rule of ["short", "long", "area"])
+                                consider(solveGreedy(set, sortFn, score, rule), set);
+                // 2. Look-ahead pass, then 3. repacking, while time allows
+                if (timeMs > 0 && todo.length) {
+                    if (todo.length <= 60)
+                        for (const set of stockSets) {
+                            if (!timeLeft() || optimal()) break;
+                            consider(solvePilot(set, todo), set);
+                            consider(solvePilot(set, todo, null, false), set);
+                        }
+                    let round = 0;
+                    // Round cap keeps typical batches repeatable (same plan every time); the
+                    // time budget still bounds very large batches
+                    while (timeLeft() && !optimal() && round < 20) {
+                        const start = round++ % 2 === 0 ? best : null;
+                        const set = start ? start.set : stockSets[Math.floor(rng() * stockSets.length)];
+                        let sheets;
+                        if (start) sheets = start.sheets;
+                        else if (todo.length > 60) {
+                            // Fresh start: a shuffled biggest-first greedy plan
+                            const key = new Map(todo.map((p) => [p, area(p) * (0.6 + 0.8 * rng())]));
+                            sheets = solveGreedy(set, (a, b) => key.get(b) - key.get(a), scores[0], "area");
+                        } else sheets = solvePilot(set, todo, rng, rng() < 0.5);
+                        consider(improve(sheets, set), set);
+                    }
+                    consider(downsize(best.sheets), best.set);
+                }
 
                 const sheets = (best ? best.sheets : []).map((sh) => {
-                    const stockArea = sh.stock.w * sh.stock.h;
                     const usedArea = sh.placed.reduce((a, p) => a + area(p), 0);
                     return {
-                        ...sh,
-                        stockArea,
+                        stock: sh.stock,
+                        placed: sh.placed,
+                        cuts: sh.cuts,
+                        free: sh.free,
+                        stockArea: stockArea(sh.stock),
                         usedArea,
                         // Leftover board big enough to keep (both sides ≥ 2")
                         offcuts: sh.free.filter((r) => r.w >= 2 && r.h >= 2),
-                        cutLength: sh.cuts.reduce(
-                            (a, c) => a + Math.abs(c.x2 - c.x1) + Math.abs(c.y2 - c.y1),
-                            0,
-                        ),
+                        cutLength: sh.cuts.reduce((a, c) => a + Math.abs(c.x2 - c.x1) + Math.abs(c.y2 - c.y1), 0),
                     };
                 });
-                const stockArea = sheets.reduce((a, s) => a + s.stockArea, 0);
+                const totalStock = sheets.reduce((a, s) => a + s.stockArea, 0);
                 const usedArea = sheets.reduce((a, s) => a + s.usedArea, 0);
                 return {
                     sheets,
                     unplaceable,
-                    stockArea,
+                    stockArea: totalStock,
                     usedArea,
                     cuts: sheets.reduce((a, s) => a + s.cuts.length, 0),
                     cutLength: sheets.reduce((a, s) => a + s.cutLength, 0),
@@ -3572,25 +3906,36 @@
             const PLAN_DEFAULTS = {
                 stocks: { "32x40": true, "40x60": true },
                 kerf: 1 / 32,
-                trim: 0.25,
+                trim: 0, // edge trim per side; none by default
                 rotate: true,
+                fullSize: false, // boards come oversize, e.g. a 40 × 60 is really 40¼ × 60¼
+                bleed: 1 / 8, // oversize per side when fullSize is on
+                v: 2, // settings version (see loadPlanSettings)
             };
             const PLAN_KEY = "totalframe-mat-plan";
             const loadPlanSettings = () => {
                 try {
-                    return {
-                        ...PLAN_DEFAULTS,
-                        ...JSON.parse(localStorage.getItem(PLAN_KEY) || "{}"),
-                    };
+                    const saved = JSON.parse(localStorage.getItem(PLAN_KEY) || "{}");
+                    // Version 1 stored the old ¼" edge-trim default automatically; reset it to None
+                    if (saved.v !== PLAN_DEFAULTS.v) delete saved.trim;
+                    return { ...PLAN_DEFAULTS, ...saved, v: PLAN_DEFAULTS.v };
                 } catch (e) {
                     return PLAN_DEFAULTS;
                 }
             };
 
-            // Group a batch's boards by mat colour (first-seen order) and nest each colour
-            function planByColour(jobs, settings) {
+            const OPTIMIZE_MS = 1000; // search time for the optimised layout (shared by all colours)
+
+            // Group a batch's boards by mat colour (first-seen order) and nest each colour.
+            // timeMs = 0 gives the fast layout; more lets the optimiser search for a better one.
+            function planByColour(jobs, settings, timeMs = 0) {
                 const { pieces, problems } = jobPieces(jobs);
-                const stocks = STOCK_SIZES.filter((s) => settings.stocks[s.id]);
+                // Full size: every board is `bleed` larger on each side than its nominal size,
+                // so an edge trim up to the bleed still leaves the full nominal area
+                const bleed = settings.fullSize ? settings.bleed : 0;
+                const stocks = STOCK_SIZES.filter((s) => settings.stocks[s.id]).map(
+                    (s) => ({ ...s, w: s.w + 2 * bleed, h: s.h + 2 * bleed, bleed }),
+                );
                 const order = [],
                     byColour = {};
                 pieces.forEach((p) => {
@@ -3611,6 +3956,10 @@
                                   kerf: settings.kerf,
                                   trim: settings.trim,
                                   rotate: settings.rotate,
+                                  // Share the search time between colours by board count
+                                  timeMs:
+                                      timeMs &&
+                                      Math.max(150, (timeMs * ps.length) / pieces.length),
                               })
                             : null,
                     };
@@ -3793,9 +4142,33 @@
                     } catch (e) {}
                 }, [settings]);
                 const set = (patch) => setSettings((s) => ({ ...s, ...patch }));
-                const { groups, problems, stocks } = useMemo(
-                    () => planByColour(jobs, settings),
-                    [jobs, settings],
+                // Show the fast layout at once, then swap in the optimised one (~1 s of search)
+                const quick = useMemo(() => planByColour(jobs, settings), [jobs, settings]);
+                const [optimized, setOptimized] = useState(null);
+                useEffect(() => {
+                    const id = setTimeout(
+                        () =>
+                            setOptimized({
+                                from: quick,
+                                plan: planByColour(jobs, settings, OPTIMIZE_MS),
+                            }),
+                        50, // let "Optimizing…" paint before the search blocks
+                    );
+                    return () => clearTimeout(id);
+                }, [quick]);
+                const optimizing = !optimized || optimized.from !== quick;
+                const { groups, problems, stocks } = optimizing ? quick : optimized.plan;
+                const sheetTotal = (plan) =>
+                    plan.groups.reduce((a, g) => a + (g.plan ? g.plan.sheets.length : 0), 0);
+                const saved = optimizing ? 0 : sheetTotal(quick) - sheetTotal(optimized.plan);
+                // Would a thinner edge trim save sheets? (fast layouts compared like for like)
+                const trimHint = useMemo(
+                    () =>
+                        settings.trim > 1 / 16 + 1e-9
+                            ? sheetTotal(quick) -
+                              sheetTotal(planByColour(jobs, { ...settings, trim: 1 / 16 }))
+                            : 0,
+                    [quick],
                 );
 
                 const allSheets = groups.flatMap((g) => (g.plan ? g.plan.sheets : []));
@@ -3861,7 +4234,7 @@
                                     Mat Cutting Plan
                                 </div>
                                 <button
-                                    disabled={!allSheets.length}
+                                    disabled={optimizing || !allSheets.length}
                                     onClick={() =>
                                         buildMatPlanPDF(groups, settings, stocks, {
                                             projectName,
@@ -3870,7 +4243,7 @@
                                     }
                                     style={pageBtn(true)}
                                 >
-                                    Download PDF
+                                    {optimizing ? "Optimizing…" : "Download PDF"}
                                 </button>
                             </div>
 
@@ -3888,21 +4261,22 @@
                                     <div style={{ ...label, marginBottom: "6px" }}>
                                         Stock sheets
                                     </div>
-                                    <div style={{ display: "flex", gap: "6px" }}>
-                                        {STOCK_SIZES.map((s) => (
+                                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                                        {[
+                                            ["32 × 40 only", { "32x40": true, "40x60": false }],
+                                            ["40 × 60 only", { "32x40": false, "40x60": true }],
+                                            ["Both sizes", { "32x40": true, "40x60": true }],
+                                        ].map(([name, st]) => (
                                             <button
-                                                key={s.id}
-                                                onClick={() =>
-                                                    set({
-                                                        stocks: {
-                                                            ...settings.stocks,
-                                                            [s.id]: !settings.stocks[s.id],
-                                                        },
-                                                    })
-                                                }
-                                                style={pageBtn(settings.stocks[s.id])}
+                                                key={name}
+                                                onClick={() => set({ stocks: st })}
+                                                style={pageBtn(
+                                                    STOCK_SIZES.every(
+                                                        (s) => !!settings.stocks[s.id] === st[s.id],
+                                                    ),
+                                                )}
                                             >
-                                                {s.name}
+                                                {name}
                                             </button>
                                         ))}
                                     </div>
@@ -3918,7 +4292,7 @@
                                     >
                                         {[0, 1 / 64, 1 / 32, 1 / 16, 1 / 8].map((v) => (
                                             <option key={v} value={v}>
-                                                {v ? f(v) : "None"}
+                                                {v ? formatInchesAscii(v, 64) : "None"}
                                             </option>
                                         ))}
                                     </select>
@@ -3932,7 +4306,7 @@
                                         onChange={(e) => set({ trim: +e.target.value })}
                                         style={select}
                                     >
-                                        {[0, 1 / 8, 1 / 4, 3 / 8, 1 / 2].map((v) => (
+                                        {[0, 1 / 16, 3 / 32, 1 / 8, 1 / 4, 3 / 8, 1 / 2].map((v) => (
                                             <option key={v} value={v}>
                                                 {v ? f(v) : "None"}
                                             </option>
@@ -3950,7 +4324,89 @@
                                         {settings.rotate ? "Allowed" : "Off"}
                                     </button>
                                 </div>
+                                <div>
+                                    <div style={{ ...label, marginBottom: "6px" }}>
+                                        Board size
+                                    </div>
+                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                                        <label
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "6px",
+                                                fontSize: "12px",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={settings.fullSize}
+                                                onChange={(e) => set({ fullSize: e.target.checked })}
+                                                style={{ width: "16px", height: "16px", margin: 0 }}
+                                            />
+                                            Full size (oversize boards)
+                                        </label>
+                                        {settings.fullSize && (
+                                            <select
+                                                value={settings.bleed}
+                                                onChange={(e) => set({ bleed: +e.target.value })}
+                                                style={select}
+                                            >
+                                                {[1 / 16, 1 / 8].map((v) => (
+                                                    <option key={v} value={v}>
+                                                        +{f(v)} per side
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
+                            {stocks.length > 0 && (
+                                <div
+                                    style={{
+                                        fontSize: "11px",
+                                        color: "var(--text-secondary)",
+                                        marginTop: "-10px",
+                                        marginBottom: "20px",
+                                    }}
+                                >
+                                    {settings.fullSize &&
+                                        `Boards measure ${stocks
+                                            .map((s) => `${f(s.h)} × ${f(s.w)}`)
+                                            .join(" and ")}. `}
+                                    Usable after edge trim:{" "}
+                                    {stocks
+                                        .map(
+                                            (s) =>
+                                                `${f(s.h - 2 * settings.trim)} × ${f(s.w - 2 * settings.trim)}`,
+                                        )
+                                        .join(" and ")}
+                                </div>
+                            )}
+                            {trimHint > 0 && (
+                                <div
+                                    style={{
+                                        fontSize: "11px",
+                                        color: "#c98a00",
+                                        marginTop: "-14px",
+                                        marginBottom: "20px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px",
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    A 1/16″ edge trim would use {trimHint} fewer sheet
+                                    {trimHint !== 1 ? "s" : ""}.
+                                    <button
+                                        onClick={() => set({ trim: 1 / 16 })}
+                                        style={pageBtn(false, { padding: "3px 8px" })}
+                                    >
+                                        Use 1/16″
+                                    </button>
+                                </div>
+                            )}
 
                             {!stocks.length && (
                                 <div
@@ -3985,6 +4441,19 @@
                                 </div>
                             )}
 
+                            <div
+                                style={{
+                                    fontSize: "11px",
+                                    color: "var(--text-secondary)",
+                                    marginBottom: "8px",
+                                }}
+                            >
+                                {optimizing
+                                    ? "Optimizing layout…"
+                                    : saved > 0
+                                      ? `Optimized — ${saved} fewer sheet${saved !== 1 ? "s" : ""} than the quick layout`
+                                      : "Optimized"}
+                            </div>
                             {/* Totals */}
                             <div
                                 style={{
@@ -4152,7 +4621,11 @@
                                                     <strong>
                                                         Sheet {i + 1} of {g.plan.sheets.length}
                                                     </strong>{" "}
-                                                    · {sh.stock.name} ·{" "}
+                                                    · {sh.stock.name}
+                                                    {sh.stock.bleed
+                                                        ? ` (full size ${f(sh.stock.h)} × ${f(sh.stock.w)})`
+                                                        : ""}{" "}
+                                                    ·{" "}
                                                     <span style={{ color: "var(--text-secondary)" }}>
                                                         {sh.placed.length} board{sh.placed.length !== 1 ? "s" : ""} ·{" "}
                                                         {Math.round((100 * sh.usedArea) / sh.stockArea)}% used · {sh.cuts.length} cuts
@@ -4165,8 +4638,10 @@
                             ))}
 
                             <div style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: 1.6, paddingBottom: "40px" }}>
-                                Trim the factory edges first, then make the cuts in number order — each runs edge
-                                to edge across the piece being cut. Dashed outlines inside window boards are the
+                                {settings.trim > 0
+                                    ? `Trim ${f(settings.trim)} off each factory edge first, then make the cuts in number order`
+                                    : "Make the cuts in number order"}{" "}
+                                — each runs edge to edge across the piece being cut. Dashed outlines inside window boards are the
                                 window drop-outs. Hatched areas are waste; light boxes are offcuts worth keeping
                                 (2″ or more on both sides).
                             </div>
@@ -4333,7 +4808,7 @@
                         settings.kerf ? f(settings.kerf) : "none"
                     }    Edge trim: ${settings.trim ? f(settings.trim) : "none"}    Rotation: ${
                         settings.rotate ? "allowed" : "off"
-                    }`,
+                    }${settings.fullSize ? `    Full size: +${f(settings.bleed)} per side` : ""}`,
                     M,
                     y,
                 );
@@ -4373,7 +4848,10 @@
                 pdf.setFontSize(7.5);
                 pdf.setTextColor(100);
                 pdf.splitTextToSize(
-                    "Trim the factory edges first, then make the cuts in number order - each runs edge to edge across the piece being cut. Dashed outlines inside window boards are the window drop-outs. Grey is waste; light dashed boxes are offcuts worth keeping (2\" or more on both sides). Sizes in inches.",
+                    (settings.trim
+                        ? `Trim ${f(settings.trim)} off each factory edge first, then make the cuts`
+                        : "Make the cuts") +
+                        " in number order - each runs edge to edge across the piece being cut. Dashed outlines inside window boards are the window drop-outs. Grey is waste; light dashed boxes are offcuts worth keeping (2\" or more on both sides). Sizes in inches.",
                     CW,
                 ).forEach((line) => {
                     pdf.text(line, M, y);
@@ -4484,7 +4962,15 @@
                         pdf.setFont("helvetica", "bold");
                         pdf.setFontSize(9);
                         pdf.setTextColor(0);
-                        pdf.text(`Sheet ${i + 1} of ${all.length}  ·  ${sh.stock.name}`, M, y);
+                        pdf.text(
+                            `Sheet ${i + 1} of ${all.length}  ·  ${sh.stock.name}${
+                                sh.stock.bleed
+                                    ? ` (full size ${f(sh.stock.h)} x ${f(sh.stock.w)})`
+                                    : ""
+                            }`,
+                            M,
+                            y,
+                        );
                         pdf.setFont("helvetica", "normal");
                         pdf.setFontSize(8);
                         pdf.setTextColor(90);
