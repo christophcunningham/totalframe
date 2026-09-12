@@ -3305,6 +3305,11 @@
                 const sub = metric
                     ? formatInchesAscii(v, 32)
                     : +v.toFixed(4) + '"';
+                // Whole number bold, fraction (or unit) regular — easier to read at a glance.
+                // A fraction on its own ("21/32") stays all-regular.
+                const bold = metric
+                    ? main.match(/^-?[\d.]+/)?.[0] || ""
+                    : main.match(/^-?\d+(?![\d/])/)?.[0] || "";
                 return (
                     <span
                         style={{
@@ -3315,7 +3320,10 @@
                             whiteSpace: "nowrap",
                         }}
                     >
-                        <span>{main}</span>
+                        <span>
+                            <span style={{ fontWeight: 600 }}>{bold}</span>
+                            {main.slice(bold.length)}
+                        </span>
                         <span
                             style={{
                                 fontSize: "0.72em",
@@ -4481,81 +4489,57 @@
                                         {settings.rotate ? "Allowed" : "Off"}
                                     </button>
                                 </div>
-                                <div>
+                                <label>
                                     <div style={{ ...label, marginBottom: "6px" }}>
                                         Board size
                                     </div>
-                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                        <label
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "6px",
-                                                fontSize: "12px",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={settings.fullSize}
-                                                onChange={(e) => set({ fullSize: e.target.checked })}
-                                                style={{ width: "16px", height: "16px", margin: 0 }}
-                                            />
-                                            Full size (oversize boards)
-                                        </label>
-                                        {settings.fullSize && (
-                                            <select
-                                                value={settings.bleed}
-                                                onChange={(e) => set({ bleed: +e.target.value })}
-                                                style={select}
-                                            >
-                                                {[1 / 16, 1 / 8].map((v) => (
-                                                    <option key={v} value={v}>
-                                                        +{f(v)} per side
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </div>
-                                </div>
-                                <div>
+                                    <select
+                                        value={settings.fullSize ? settings.bleed : "std"}
+                                        onChange={(e) =>
+                                            set(
+                                                e.target.value === "std"
+                                                    ? { fullSize: false }
+                                                    : { fullSize: true, bleed: +e.target.value },
+                                            )
+                                        }
+                                        style={{ ...select, minWidth: "130px" }}
+                                        title="Oversize boards: a 40 × 60 that really measures 40 1/4 × 60 1/4"
+                                    >
+                                        <option value="std">Standard</option>
+                                        {[1 / 16, 1 / 8].map((v) => (
+                                            <option key={v} value={v}>
+                                                Full +{f(v)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <label>
                                     <div style={{ ...label, marginBottom: "6px" }}>
                                         Knockouts
                                     </div>
-                                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                                        <label
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: "6px",
-                                                fontSize: "12px",
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={settings.useKnockouts}
-                                                onChange={(e) => set({ useKnockouts: e.target.checked })}
-                                                style={{ width: "16px", height: "16px", margin: 0 }}
-                                            />
-                                            Use knockouts
-                                        </label>
-                                        {settings.useKnockouts && (
-                                            <select
-                                                value={settings.knockoutMargin}
-                                                onChange={(e) => set({ knockoutMargin: +e.target.value })}
-                                                style={select}
-                                                title="Knockout size = window size minus this on each side (bevel + clean edge)"
-                                            >
-                                                {[1 / 16, 1 / 8, 3 / 16, 1 / 4].map((v) => (
-                                                    <option key={v} value={v}>
-                                                        −{f(v)} per side
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </div>
-                                </div>
+                                    <select
+                                        value={settings.useKnockouts ? settings.knockoutMargin : "off"}
+                                        onChange={(e) =>
+                                            set(
+                                                e.target.value === "off"
+                                                    ? { useKnockouts: false }
+                                                    : {
+                                                          useKnockouts: true,
+                                                          knockoutMargin: +e.target.value,
+                                                      },
+                                            )
+                                        }
+                                        style={{ ...select, minWidth: "110px" }}
+                                        title="Cut smaller boards from window knockouts — knockout size = window size minus this on each side (bevel + clean edge)"
+                                    >
+                                        <option value="off">Off</option>
+                                        {[1 / 16, 1 / 8, 3 / 16, 1 / 4].map((v) => (
+                                            <option key={v} value={v}>
+                                                −{f(v)}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
                             </div>
                             {stocks.length > 0 && (
                                 <div
@@ -6380,8 +6364,9 @@
                                 Math.round(srcH),
                             );
                         pdf.addImage(
-                            sliceCanvas.toDataURL("image/png"),
-                            "PNG",
+                            // JPEG (on the white capture background) — a tenth the size of PNG here
+                            sliceCanvas.toDataURL("image/jpeg", 0.9),
+                            "JPEG",
                             MARGIN_MM,
                             MARGIN_MM,
                             imgW,
@@ -6435,62 +6420,67 @@
                     }
                 };
 
-                const generateJobListPDF = async (event) => {
-                    const button = event?.currentTarget;
-                    if (button) {
-                        button.textContent = "Generating...";
-                        button.disabled = true;
-                    }
-
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF({
-                        orientation: "portrait",
-                        unit: "mm",
-                        format: "letter",
-                    });
-
-                    // Note: jsPDF built-in fonts are helvetica/times/courier only.
-                    // Gill Sans cannot be embedded without a base64 font file.
-                    // Using helvetica as the closest clean sans-serif substitute.
-
+                // The job list drawn as vectors — used by "Export List" and as the cover page of
+                // the combined batch PDF (sharp text, small file, none of the on-screen buttons).
+                // jsPDF's built-in fonts are helvetica/times/courier only, so helvetica stands in
+                // for Gill Sans.
+                const drawJobList = (pdf, jobs) => {
                     const PW = 215.9,
                         PH = 279.4,
                         M = 19.05;
                     const CW = PW - M * 2; // 177.8mm usable width
                     let y = M;
 
-                    const projectName =
-                        batchJobs[0]?.snapshot?.itemProject || "";
+                    const projectName = jobs[0]?.snapshot?.itemProject || "";
                     const dateStr =
-                        batchJobs[0]?.snapshot?.itemDate ||
+                        jobs[0]?.snapshot?.itemDate ||
                         new Date().toISOString().split("T")[0];
 
-                    // Title
+                    // Masthead
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(150);
+                    pdf.text("TOTAL FRAME", M, y - 4);
                     pdf.setFont("helvetica", "bold");
-                    pdf.setFontSize(18);
+                    pdf.setFontSize(19);
                     pdf.setTextColor(0);
-                    pdf.text("JOB LIST", M, y);
-                    y += 8;
-
-                    // Project + Date
+                    pdf.text("Job List", M, y + 4);
                     pdf.setFont("helvetica", "normal");
                     pdf.setFontSize(9);
-                    pdf.setTextColor(100);
+                    pdf.setTextColor(90);
+                    pdf.text(dateStr, PW - M, y + 4, { align: "right" });
+                    y += 9;
+                    if (projectName) {
+                        pdf.setFont("helvetica", "bold");
+                        pdf.setFontSize(10);
+                        pdf.setTextColor(0);
+                        pdf.text(projectName, M, y);
+                        y += 4.5;
+                    }
+                    // Items and mat colours at a glance
+                    const mats = {};
+                    jobs.forEach((j) => {
+                        const c = j.snapshot.matColor || "—";
+                        mats[c] = (mats[c] || 0) + 1;
+                    });
+                    pdf.setFont("helvetica", "normal");
+                    pdf.setFontSize(8.5);
+                    pdf.setTextColor(110);
                     pdf.text(
-                        projectName
-                            ? `Project: ${projectName}`
-                            : "Project: ___________________________",
+                        `${jobs.length} item${jobs.length !== 1 ? "s" : ""}   ·   ${Object.entries(
+                            mats,
+                        )
+                            .map(([c, n]) => `${c} ${n}`)
+                            .join("   ·   ")}`,
                         M,
                         y,
                     );
-                    pdf.text(`Date: ${dateStr}`, PW - M, y, { align: "right" });
-                    y += 4;
+                    y += 3.5;
 
-                    // Header rule
                     pdf.setDrawColor(0);
-                    pdf.setLineWidth(0.5);
+                    pdf.setLineWidth(0.6);
                     pdf.line(M, y, PW - M, y);
-                    y += 6;
+                    y += 7;
 
                     // Columns — total must equal CW (177.8mm)
                     // #(7) + Title(42) + Art(32) + Frame(32) + Sheet(28) + Or(9) + Mat(20) + Bwt(7.8) = 177.8
@@ -6511,28 +6501,32 @@
                         cx += c.w;
                     });
 
-                    // Column headers
-                    pdf.setFont("helvetica", "bold");
-                    pdf.setFontSize(7);
-                    pdf.setTextColor(80);
-                    cols.forEach((c) => {
-                        const xPos = c.align === "center" ? c.x + c.w / 2 : c.x;
-                        pdf.text(c.label.toUpperCase(), xPos, y, {
-                            align: c.align === "center" ? "center" : "left",
+                    // Column headers, repeated after a page break
+                    const headerRow = () => {
+                        pdf.setFillColor(238);
+                        pdf.rect(M, y - 3.6, CW, 5.4, "F");
+                        pdf.setFont("helvetica", "bold");
+                        pdf.setFontSize(7);
+                        pdf.setTextColor(70);
+                        cols.forEach((c) => {
+                            const xPos =
+                                c.align === "center" ? c.x + c.w / 2 : c.x;
+                            pdf.text(c.label.toUpperCase(), xPos, y, {
+                                align: c.align === "center" ? "center" : "left",
+                            });
                         });
-                    });
-                    y += 1.5;
-                    pdf.setLineWidth(0.3);
-                    pdf.setDrawColor(150);
-                    pdf.line(M, y, PW - M, y);
-                    y += 4.5;
+                        y += 1.8;
+                        pdf.setLineWidth(0.3);
+                        pdf.setDrawColor(120);
+                        pdf.line(M, y, PW - M, y);
+                        y += 4.5;
+                        pdf.setFont("helvetica", "normal");
+                        pdf.setFontSize(8.5);
+                        pdf.setTextColor(0);
+                    };
+                    headerRow();
 
-                    // Rows
-                    pdf.setFont("helvetica", "normal");
-                    pdf.setFontSize(8.5);
-                    pdf.setTextColor(0);
-
-                    batchJobs.forEach((job) => {
+                    jobs.forEach((job, rowIdx) => {
                         const s = job.snapshot;
                         const f = (v) => formatInchesAscii(v, 32);
                         const fw = s.frameWidth,
@@ -6564,9 +6558,16 @@
                                 ? f(s.sheetWidth) + "×" + f(s.sheetHeight)
                                 : "—";
 
-                        if (y > PH - M - 12) {
+                        if (y > PH - M - 14) {
                             pdf.addPage();
-                            y = M;
+                            y = M + 4;
+                            headerRow();
+                        }
+                        // Banded rows, easier to follow across the page
+                        if (rowIdx % 2 === 1) {
+                            pdf.setFillColor(247);
+                            pdf.rect(M, y - 3.4, CW, 5.8, "F");
+                            pdf.setTextColor(0);
                         }
 
                         const rowData = [
@@ -6619,14 +6620,29 @@
                     pdf.setFontSize(7);
                     pdf.setTextColor(120);
                     pdf.text(
-                        `Total Frame  ·  ${batchJobs.length} Item${batchJobs.length !== 1 ? "s" : ""}`,
+                        `Total Frame  ·  ${jobs.length} item${jobs.length !== 1 ? "s" : ""}`,
                         M,
                         y,
                     );
                     pdf.text(dateStr, PW - M, y, { align: "right" });
+                };
 
-                    const filename = `${projectName || "job-list"}-list.pdf`;
-                    pdf.save(filename);
+                const generateJobListPDF = async (event) => {
+                    const button = event?.currentTarget;
+                    if (button) {
+                        button.textContent = "Generating...";
+                        button.disabled = true;
+                    }
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF({
+                        orientation: "portrait",
+                        unit: "mm",
+                        format: "letter",
+                    });
+                    drawJobList(pdf, batchJobs);
+                    const projectName =
+                        batchJobs[0]?.snapshot?.itemProject || "";
+                    pdf.save(`${projectName || "job-list"}-list.pdf`);
                     if (button) {
                         button.textContent = "Export List";
                         button.disabled = false;
@@ -6651,26 +6667,9 @@
                     const savedSnap = captureSnapshot();
                     const savedRecalling = recallingJob;
 
-                    // Page 1: Job List
-                    const listEl = document.getElementById("job-list-content");
-                    if (listEl) {
-                        const noPrintEls =
-                            document.querySelectorAll(".no-print");
-                        noPrintEls.forEach((el) => (el.style.display = "none"));
-                        const restore = applyPrintTheme(listEl);
-                        await new Promise((r) => setTimeout(r, 100));
-                        try {
-                            const canvas = await captureElement(listEl);
-                            isFirstPage = addCanvasToPDF(
-                                pdf,
-                                canvas,
-                                isFirstPage,
-                            );
-                        } finally {
-                            restore();
-                            noPrintEls.forEach((el) => (el.style.display = ""));
-                        }
-                    }
+                    // Page 1: the job list, drawn as vectors rather than captured from the screen
+                    drawJobList(pdf, batchJobs);
+                    isFirstPage = false;
 
                     // Subsequent pages: one tear sheet per job
                     const captureJob = (job) =>
@@ -7418,7 +7417,7 @@
                                         style={{
                                             display: "grid",
                                             gridTemplateColumns:
-                                                "22px 16px 24px 110px 110px 110px 40px 80px 1fr 20px",
+                                                "16px 22px 24px 110px 110px 110px 40px 80px 1fr 20px",
                                             gap: "0 4px",
                                         }}
                                     >
@@ -7438,6 +7437,7 @@
                                                 alignItems: "center",
                                             }}
                                         >
+                                            <div></div>
                                             <input
                                                 type="checkbox"
                                                 checked={allSelected}
@@ -7445,7 +7445,6 @@
                                                 title="Select all"
                                                 style={checkboxStyle}
                                             />
-                                            <div></div>
                                             <div>#</div>
                                             <div>Art/Window</div>
                                             <div>Frame</div>
@@ -7538,17 +7537,7 @@
                                                         touchAction: "none",
                                                     }}
                                                 >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={liveSelected.includes(s)}
-                                                        onChange={() => toggleSelect(s)}
-                                                        // Don't start a row drag from the checkbox
-                                                        onTouchStart={(e) =>
-                                                            e.stopPropagation()
-                                                        }
-                                                        style={checkboxStyle}
-                                                    />
-                                                    {/* Drag handle */}
+                                                    {/* Drag handle — outer left edge */}
                                                     <div
                                                         style={{
                                                             display: "flex",
@@ -7576,6 +7565,16 @@
                                                             />
                                                         ))}
                                                     </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={liveSelected.includes(s)}
+                                                        onChange={() => toggleSelect(s)}
+                                                        // Don't start a row drag from the checkbox
+                                                        onTouchStart={(e) =>
+                                                            e.stopPropagation()
+                                                        }
+                                                        style={checkboxStyle}
+                                                    />
                                                     {/* # */}
                                                     <div
                                                         style={{
