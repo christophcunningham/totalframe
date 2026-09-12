@@ -4890,6 +4890,15 @@
                 );
             }
 
+            // File-name base from the client/project: "Christies Wolf" → "Christies_Wolf_tfcuts"
+            const projectFileBase = (name) => {
+                const clean = (name || "")
+                    .trim()
+                    .replace(/[\\/:*?"<>|]+/g, "")
+                    .replace(/\s+/g, "_");
+                return clean ? `${clean}_tfcuts` : "tfcuts";
+            };
+
             // Vector PDF of a mat cutting plan — drawn with jsPDF lines/text (sharp, small files).
             // Uses plain-ASCII fractions because jsPDF's built-in fonts can't draw ⅜ etc.
             function buildMatPlanPDF(groups, settings, stocks, { projectName, dateStr }) {
@@ -5280,8 +5289,7 @@
                     }
                 });
 
-                const safe = (projectName || "mat").replace(/[\\/:*?"<>|]+/g, "-");
-                pdf.save(`${safe}-cutting-plan.pdf`);
+                pdf.save(`${projectFileBase(projectName)}_mat-plan.pdf`);
             }
 
             // Pure layout maths for one item (margins, mat/frame size, errors) — shared by the
@@ -6642,7 +6650,7 @@
                     drawJobList(pdf, batchJobs);
                     const projectName =
                         batchJobs[0]?.snapshot?.itemProject || "";
-                    pdf.save(`${projectName || "job-list"}-list.pdf`);
+                    pdf.save(`${projectFileBase(projectName)}_list.pdf`);
                     if (button) {
                         button.textContent = "Export List";
                         button.disabled = false;
@@ -6718,8 +6726,8 @@
                                 );
                         }
                         const projectName =
-                            batchJobs[0]?.snapshot?.itemProject || "batch";
-                        pdf.save(`${projectName}-full.pdf`);
+                            batchJobs[0]?.snapshot?.itemProject || "";
+                        pdf.save(`${projectFileBase(projectName)}.pdf`);
                     } finally {
                         // Restore original state even if a capture fails
                         recallSnapshot(savedSnap);
@@ -7232,6 +7240,32 @@
                         cursor: "pointer",
                     };
 
+                    // One client/project name for the whole batch — shown on the exported pages
+                    // and used for the file names. Writing it into every job keeps the tear sheets
+                    // in step; the selection and any loaded job follow the new snapshots.
+                    const batchProject =
+                        batchJobs[0]?.snapshot?.itemProject || "";
+                    const setBatchProject = (v) => {
+                        const moved = new Map();
+                        const next = batchJobs.map((j) => {
+                            const snapshot = { ...j.snapshot, itemProject: v };
+                            moved.set(j.snapshot, snapshot);
+                            return { ...j, snapshot };
+                        });
+                        setBatchJobs(next);
+                        setSelectedJobs((sel) =>
+                            sel.map((s) => moved.get(s) || s),
+                        );
+                        if (recallingJob)
+                            setRecallingJob({
+                                ...recallingJob,
+                                snapshot:
+                                    moved.get(recallingJob.snapshot) ||
+                                    recallingJob.snapshot,
+                            });
+                        setItemProject(v);
+                    };
+
                     const pageStyle = {
                         background: "var(--bg)",
                         color: "var(--text)",
@@ -7339,6 +7373,61 @@
                                     </div>
                                     <div style={{ width: "80px" }} />
                                 </div>
+
+                                {batchJobs.length > 0 && (
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "10px",
+                                            flexWrap: "wrap",
+                                            marginBottom: "14px",
+                                        }}
+                                    >
+                                        <label
+                                            style={{
+                                                fontSize: "9px",
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.1em",
+                                                color: "var(--text-secondary)",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            Client / Project
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={batchProject}
+                                            onChange={(e) =>
+                                                setBatchProject(e.target.value)
+                                            }
+                                            placeholder="e.g. Christies Wolf"
+                                            style={{
+                                                flex: 1,
+                                                minWidth: "180px",
+                                                maxWidth: "340px",
+                                                padding: "8px 10px",
+                                                fontSize: "13px",
+                                                fontFamily: "inherit",
+                                                border: "1px solid var(--border-strong)",
+                                                background:
+                                                    "var(--surface-alt)",
+                                                color: "var(--text)",
+                                                outline: "none",
+                                            }}
+                                        />
+                                        <span
+                                            style={{
+                                                fontSize: "11px",
+                                                color: "var(--text-secondary)",
+                                                fontVariantNumeric:
+                                                    "tabular-nums",
+                                            }}
+                                        >
+                                            {projectFileBase(batchProject)}.pdf
+                                        </span>
+                                    </div>
+                                )}
 
                                 {batchJobs.length > 0 && (
                                     <div
@@ -9428,13 +9517,6 @@
                                                           },
                                                       ]
                                                     : []),
-                                                {
-                                                    label: "Rabbet Depth",
-                                                    val: f(c.rabbetDepth),
-                                                    sub:
-                                                        fm(c.rabbetDepth) +
-                                                        " mm",
-                                                },
                                                 {
                                                     label: "Mat · Frame",
                                                     val:
