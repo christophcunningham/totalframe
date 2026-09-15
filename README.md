@@ -105,9 +105,9 @@ Open from the Job List. Boards (windows and backers) are grouped by mat colour a
 
 | Export | File |
 |---|---|
-| Export List + Tear Sheets | `Christies_Wolf_tfcuts.pdf` |
-| Export List | `Christies_Wolf_tfcuts_list.pdf` |
-| Mat Cutting Plan | `Christies_Wolf_tfcuts_mat-plan.pdf` |
+| Export List + Tear Sheets | `client_project_tfcuts.pdf` |
+| Export List | `client_project_tfcuts_list.pdf` |
+| Mat Cutting Plan | `client_project_tfcuts_mat-plan.pdf` |
 
 The job list, cover page and cutting plan are drawn as vector PDFs (sharp, small files). Tear sheets and the cut list are captured from the page. All PDFs use light-mode colours whatever the theme.
 
